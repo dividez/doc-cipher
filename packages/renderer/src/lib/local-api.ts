@@ -8,9 +8,11 @@ import type {
 } from '@app/shared';
 
 export type LocalApi = {
+  ping: () => Promise<{message: string; time: string}>;
   selectDocx: () => Promise<string | null>;
   selectRestoreFile: () => Promise<string | null>;
   selectOutputDir: () => Promise<string | null>;
+  smokeMaskDocx: (payload: {filePath: string}) => Promise<{success: boolean; outputPath: string}>;
   maskDocx: (payload: MaskDocxPayload) => Promise<MaskDocxResult>;
   restoreDocx: (payload: RestoreDocxPayload) => Promise<RestoreDocxResult>;
   readSettings: () => Promise<Settings>;

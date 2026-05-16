@@ -1,6 +1,7 @@
-import {contextBridge} from 'electron';
+import {doccipher} from './doccipher.js';
 import {localApi} from './index.js';
 
-contextBridge.exposeInMainWorld('localApi', localApi);
+const {contextBridge} = require('electron') as typeof import('electron');
 
-export {localApi};
+contextBridge.exposeInMainWorld('localApi', localApi);
+contextBridge.exposeInMainWorld('doccipher', doccipher);

@@ -30,7 +30,7 @@ initApp(
       },
 
     preload: {
-      path: fileURLToPath(import.meta.resolve('@app/preload/exposed.mjs')),
+      path: fileURLToPath(import.meta.resolve('@app/preload/exposed.cjs')),
     },
   },
 );

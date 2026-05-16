@@ -1,5 +1,7 @@
 import type {AppModule} from '../AppModule.js';
 import type {ModuleContext} from '../ModuleContext.js';
+import {copyFile} from 'node:fs/promises';
+import {basename, dirname, extname, join} from 'node:path';
 import {dialog, ipcMain, shell} from 'electron';
 import {settingsSchema, type MaskDocxPayload, type RestoreDocxPayload} from '@app/shared';
 import {maskDocx} from '../services/docx-mask.service.js';
@@ -11,6 +13,28 @@ class IpcModule implements AppModule {
   async enable({app}: ModuleContext): Promise<void> {
     await app.whenReady();
     configureLogger();
+
+    ipcMain.handle('app:ping', async () => {
+      console.log('[main] received ping');
+      return {
+        message: 'pong',
+        time: new Date().toISOString(),
+      };
+    });
+
+    ipcMain.handle('docx:smoke-mask', async (_, payload: {filePath: string}) => {
+      const {filePath} = payload;
+      const dir = dirname(filePath);
+      const ext = extname(filePath);
+      const base = basename(filePath, ext);
+      const outputPath = join(dir, `${base}.masked${ext}`);
+      await copyFile(filePath, outputPath);
+      console.log('[main] smoke masked file:', outputPath);
+      return {
+        success: true,
+        outputPath,
+      };
+    });
 
     ipcMain.handle('file:select-docx', async () => {
       const result = await dialog.showOpenDialog({

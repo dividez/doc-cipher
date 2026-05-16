@@ -6,20 +6,14 @@
     "typecheck": "tsc --noEmit"
   },
   "exports": {
-    ".": {
-      "types": "./src/index.ts",
-      "default": "./dist/_virtual_browser.mjs"
-    },
-    "./exposed.mjs": {
-      "types": "./src/exposed.d.ts",
-      "default": "./dist/exposed.mjs"
+    "./exposed.cjs": {
+      "default": "./dist/exposed.cjs"
     }
   },
   "dependencies": {
     "@app/shared": "workspace:*"
   },
   "devDependencies": {
-    "mlly": "1.8.2",
     "typescript": "6.0.3",
     "vite": "8.0.13"
   }

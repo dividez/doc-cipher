@@ -575,6 +575,57 @@ textarea {
   padding: 0 8px !important;
 }
 
+.dev-debug {
+  border-top: 1px solid var(--border);
+  background: var(--background);
+}
+
+.dev-debug-toggle {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+  padding: 8px 16px;
+  color: var(--muted-foreground);
+  text-align: left;
+  cursor: pointer;
+  background: transparent;
+  border: 0;
+  font-size: 12px;
+}
+
+.dev-debug-body {
+  display: grid;
+  gap: 12px;
+  padding: 0 16px 12px;
+}
+
+.dev-debug-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.dev-debug-output {
+  display: grid;
+  gap: 4px;
+  padding: 10px 12px;
+  font-family: "SFMono-Regular", Consolas, monospace;
+  font-size: 12px;
+  background: var(--muted);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+}
+
+.dev-debug-output p {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+.dev-debug-empty {
+  color: var(--muted-foreground);
+}
+
 .ui-button {
   display: inline-flex;
   gap: 8px;

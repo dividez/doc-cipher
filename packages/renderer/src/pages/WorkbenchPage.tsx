@@ -24,6 +24,7 @@ import {
   type Settings as AppSettings,
 } from '@app/shared';
 import {Badge, Button, Card, Input, Label, Textarea, cn} from '../components/ui';
+import {getDebugApi} from '../lib/debug-api';
 import {getLocalApi, isLocalApiReady} from '../lib/local-api';
 import {loadRecentTasks, pushRecentTask, type RecentTask} from '../lib/recent-tasks';
 
@@ -47,6 +48,10 @@ export function WorkbenchPage() {
   const [advancedJsonOpen, setAdvancedJsonOpen] = useState(false);
   const [expandedRuleId, setExpandedRuleId] = useState<string | null>(null);
   const [dragOver, setDragOver] = useState(false);
+  const [devDebugOpen, setDevDebugOpen] = useState(false);
+  const [devPingResult, setDevPingResult] = useState<{message: string; time: string} | null>(null);
+  const [devFilePath, setDevFilePath] = useState<string | null>(null);
+  const [devMaskResult, setDevMaskResult] = useState<{success: boolean; outputPath: string} | null>(null);
 
   const enabledRules = useMemo(() => settings.rules.filter((rule) => rule.enabled), [settings]);
   const latestLogs = useMemo(() => logs.slice(-5), [logs]);
@@ -356,6 +361,64 @@ export function WorkbenchPage() {
         </main>
       </div>
 
+      <DevDebugPanel
+        open={devDebugOpen}
+        pingResult={devPingResult}
+        filePath={devFilePath}
+        maskResult={devMaskResult}
+        onToggle={() => setDevDebugOpen((value) => !value)}
+        onPing={async () => {
+          const api = getDebugApi();
+          if (!api) {
+            console.error('IPC bridge not available');
+            return;
+          }
+          try {
+            const res = await api.ping();
+            console.log(res);
+            setDevPingResult(res);
+          } catch (error) {
+            console.error(error);
+            setDevPingResult(null);
+          }
+        }}
+        onSelectDocx={async () => {
+          const api = getDebugApi();
+          if (!api) {
+            console.error('IPC bridge not available');
+            return;
+          }
+          try {
+            const path = await api.selectDocx();
+            console.log(path);
+            setDevFilePath(path);
+          } catch (error) {
+            console.error(error);
+            setDevFilePath(null);
+          }
+        }}
+        onSelectAndMask={async () => {
+          const api = getDebugApi();
+          if (!api) {
+            console.error('IPC bridge not available');
+            return;
+          }
+          try {
+            const path = await api.selectDocx();
+            if (!path) {
+              return;
+            }
+            setDevFilePath(path);
+            const result = await api.maskDocx({filePath: path});
+            console.log(result);
+            setDevMaskResult(result);
+          } catch (error) {
+            console.error(error);
+            setDevMaskResult(null);
+          }
+        }}
+      />
+
       <footer className={cn('log-bar', logBarExpanded && 'log-bar-expanded')}>
         <button type="button" className="log-bar-toggle" onClick={() => setLogBarExpanded((open) => !open)}>
           {logBarExpanded ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
@@ -379,6 +442,54 @@ export function WorkbenchPage() {
       </footer>
 
     </div>
+  );
+}
+
+function DevDebugPanel({
+  open,
+  pingResult,
+  filePath,
+  maskResult,
+  onToggle,
+  onPing,
+  onSelectDocx,
+  onSelectAndMask,
+}: {
+  open: boolean;
+  pingResult: {message: string; time: string} | null;
+  filePath: string | null;
+  maskResult: {success: boolean; outputPath: string} | null;
+  onToggle: () => void;
+  onPing: () => void;
+  onSelectDocx: () => void;
+  onSelectAndMask: () => void;
+}) {
+  return (
+    <section className="dev-debug">
+      <button type="button" className="dev-debug-toggle" onClick={onToggle}>
+        {open ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
+        <span>开发调试</span>
+      </button>
+      {open && (
+        <div className="dev-debug-body">
+          <div className="dev-debug-actions">
+            <Button type="button" variant="outline" onClick={onPing}>Ping Main</Button>
+            <Button type="button" variant="outline" onClick={onSelectDocx}>选择 Word 文件</Button>
+            <Button type="button" variant="outline" onClick={onSelectAndMask}>选择并脱敏（smoke）</Button>
+          </div>
+          <div className="dev-debug-output">
+            {pingResult && (
+              <p>
+                ping: {pingResult.message} @ {pingResult.time}
+              </p>
+            )}
+            {filePath && <p>file: {filePath}</p>}
+            {maskResult && <p>output: {maskResult.outputPath}</p>}
+            {!pingResult && !filePath && !maskResult && <p className="dev-debug-empty">暂无调试输出</p>}
+          </div>
+        </div>
+      )}
+    </section>
   );
 }
 

@@ -23,7 +23,12 @@ class WindowManager implements AppModule {
 
   async createWindow(): Promise<BrowserWindow> {
     const browserWindow = new BrowserWindow({
+      width: 1280,
+      height: 820,
+      minWidth: 1080,
+      minHeight: 720,
       show: false, // Use the 'ready-to-show' event to show the instantiated BrowserWindow.
+      title: 'DocCipher',
       webPreferences: {
         nodeIntegration: false,
         contextIsolation: true,
