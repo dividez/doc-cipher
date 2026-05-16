@@ -69,7 +69,7 @@ importers:
         version: 6.8.3
       zod:
         specifier: latest
-        version: 4.1.13
+        version: 4.4.3
     devDependencies:
       '@app/electron-versions':
         specifier: workspace:*
@@ -141,7 +141,7 @@ importers:
     dependencies:
       zod:
         specifier: latest
-        version: 4.1.13
+        version: 4.4.3
     devDependencies:
       typescript:
         specifier: latest
@@ -3008,6 +3008,6 @@ packages:
     engines: {node: '>=10'}
     dev: true
 
-  /zod@4.1.13:
-    resolution: {integrity: sha512-AvvthqfqrAhNH9dnfmrfKzX5upOdjUVJYFqNSlkmGf64gRaTzlPwz99IHYnVs28qYAybvAlBV+H7pn0saFY4Ig==}
+  /zod@4.4.3:
+    resolution: {integrity: sha512-ytENFjIJFl2UwYglde2jchW2Hwm4GJFLDiSXWdTrJQBIN9Fcyp7n4DhxJEiWNAJMV1/BqWfW/kkg71UDcHJyTQ==}
     dev: false
