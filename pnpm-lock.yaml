@@ -23,7 +23,7 @@ importers:
         version: 25.5.0
       create-vite:
         specifier: latest
-        version: 9.0.3
+        version: 9.0.7
       electron:
         specifier: latest
         version: 41.0.3
@@ -1086,8 +1086,8 @@ packages:
     dev: true
     optional: true
 
-  /create-vite@9.0.3:
-    resolution: {integrity: sha512-eYcVOj/fzVEDFjjEURP93TTC11CmOHtnbeTz1/aEEnL+O1dEyEYzfPWE/JfxbksQ9ztlkxMZ5XG3KjVGDks0xw==}
+  /create-vite@9.0.7:
+    resolution: {integrity: sha512-TyuOQvwX4i/QN9acJzC7wzM7FfC12/1XlH3+d05PeD7Kj5o4BObuq78fB1x84SrEoi5KcQOi+b9K3JV+PWNHvw==}
     engines: {node: ^20.19.0 || >=22.12.0}
     hasBin: true
     dev: true
