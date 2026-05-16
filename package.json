@@ -5,6 +5,7 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
+  "packageManager": "pnpm@11.1.2",
   "author": "DocCipher",
   "main": "packages/entry-point.mjs",
   "workspaces": [
