@@ -22,7 +22,6 @@
     "zod": "4.4.3"
   },
   "devDependencies": {
-    "@app/electron-versions": "workspace:*",
     "@types/adm-zip": "0.5.8",
     "electron-devtools-installer": "4.0.0",
     "typescript": "6.0.3",

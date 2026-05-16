@@ -1,4 +1,3 @@
-import {getNodeMajorVersion} from '@app/electron-versions';
 import {spawn} from 'child_process';
 import electronPath from 'electron';
 
@@ -20,7 +19,7 @@ export default /**
     sourcemap: 'inline',
     outDir: 'dist',
     assetsDir: '.',
-    target: `node${getNodeMajorVersion()}`,
+    target: 'node22',
     lib: {
       entry: 'src/index.ts',
       formats: ['es'],
