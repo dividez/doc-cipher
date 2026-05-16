@@ -63,7 +63,7 @@ importers:
         version: 0.5.16
       electron-log:
         specifier: latest
-        version: 5.4.3
+        version: 5.4.4
       electron-updater:
         specifier: latest
         version: 6.8.3
@@ -1278,8 +1278,8 @@ packages:
       unzip-crx-3: 0.2.0
     dev: true
 
-  /electron-log@5.4.3:
-    resolution: {integrity: sha512-sOUsM3LjZdugatazSQ/XTyNcw8dfvH1SYhXWiJyfYodAAKOZdHs0txPiLDXFzOZbhXgAgshQkshH2ccq0feyLQ==}
+  /electron-log@5.4.4:
+    resolution: {integrity: sha512-istWgaXjBfURBSS8LWVW9C3jsc6+ac+tY1lXrQEOTp0lVj+a4OlO1Tmqb36GgnEUDv92DGC9VI1HNXwJinWpgA==}
     engines: {node: '>= 14'}
     dev: false
 
