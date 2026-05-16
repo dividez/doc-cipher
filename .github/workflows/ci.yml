@@ -24,6 +24,7 @@ env:
   PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD: 1
   npm_config_audit: false
   npm_config_fund: false
+  PNPM_CONFIG_DANGEROUSLY_ALLOW_ALL_BUILDS: true
 
 jobs:
   build:
@@ -45,7 +46,7 @@ jobs:
           version: latest
 
       - name: Install dependencies
-        run: pnpm install --no-frozen-lockfile --config.dangerously-allow-all-builds=true
+        run: pnpm install --no-frozen-lockfile
 
       - name: Typecheck
         run: pnpm typecheck

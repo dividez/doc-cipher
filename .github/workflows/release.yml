@@ -27,6 +27,7 @@ env:
   PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD: 1
   npm_config_audit: false
   npm_config_fund: false
+  PNPM_CONFIG_DANGEROUSLY_ALLOW_ALL_BUILDS: true
   CSC_IDENTITY_AUTO_DISCOVERY: false
   GH_TOKEN: ${{ github.token }}
   RELEASE_TAG: ${{ github.event.release.tag_name || inputs.tag_name }}
@@ -64,7 +65,7 @@ jobs:
           version: latest
 
       - name: Install dependencies
-        run: pnpm install --frozen-lockfile --config.dangerously-allow-all-builds=true
+        run: pnpm install --no-frozen-lockfile
 
       - name: Sync package version from release tag
         run: |

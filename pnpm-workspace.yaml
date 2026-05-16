@@ -1,6 +1,8 @@
 packages:
   - packages/*
 
+dangerouslyAllowAllBuilds: true
+
 onlyBuiltDependencies:
   - electron
   - electron-winstaller
