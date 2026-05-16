@@ -1,5 +1,6 @@
 import AdmZip from 'adm-zip';
 import {DOMParser, XMLSerializer} from '@xmldom/xmldom';
+import type {Document as XmlDocument, Element as XmlElement} from '@xmldom/xmldom';
 import {mkdir, readFile, writeFile} from 'node:fs/promises';
 import {basename, dirname, extname, join} from 'node:path';
 import type {MappingItem, MaskDocxPayload, MaskDocxResult, MaskingRule, RestoreMapping, Settings} from '@app/shared';
@@ -9,7 +10,7 @@ import {shouldProcessPart} from './docx-parts.js';
 import {logger} from './log.service.js';
 
 type TextNodeRef = {
-  element: Element;
+  element: XmlElement;
   text: string;
   start: number;
   end: number;
@@ -96,12 +97,10 @@ function maskXmlPart(
   counters: Map<string, number>,
 ): {updatedXml: string; matches: Match[]} {
   const parser = new DOMParser({
-    errorHandler: {
-      warning: () => undefined,
-      error: () => undefined,
-      fatalError: (message) => {
+    onError: (level, message) => {
+      if (level === 'fatalError') {
         throw new Error(`无法解析 ${partName}: ${message}`);
-      },
+      }
     },
   });
   const document = parser.parseFromString(xml, 'application/xml');
@@ -132,7 +131,7 @@ function maskXmlPart(
   };
 }
 
-function collectTextNodes(paragraph: Element): TextNodeRef[] {
+function collectTextNodes(paragraph: XmlElement): TextNodeRef[] {
   const nodes = Array.from(paragraph.getElementsByTagName('w:t'));
   let offset = 0;
 
@@ -243,7 +242,7 @@ function createToken(ruleId: string, count: number, rules: MaskingRule[]): strin
   return (rule?.placeholder || `[${ruleId.toUpperCase()}_{n}]`).replaceAll('{n}', n);
 }
 
-function rewriteTextNodes(document: Document, textNodes: TextNodeRef[], fullText: string, matches: Match[]): void {
+function rewriteTextNodes(document: XmlDocument, textNodes: TextNodeRef[], fullText: string, matches: Match[]): void {
   const starts = new Map(matches.map((match) => [match.start, match]));
 
   for (const node of textNodes) {
@@ -273,7 +272,7 @@ function rewriteTextNodes(document: Document, textNodes: TextNodeRef[], fullText
   }
 }
 
-function setElementText(document: Document, element: Element, text: string): void {
+function setElementText(document: XmlDocument, element: XmlElement, text: string): void {
   while (element.firstChild) {
     element.removeChild(element.firstChild);
   }

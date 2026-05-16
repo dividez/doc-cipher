@@ -1,5 +1,6 @@
 import AdmZip from 'adm-zip';
 import {DOMParser, XMLSerializer} from '@xmldom/xmldom';
+import type {Document as XmlDocument, Element as XmlElement} from '@xmldom/xmldom';
 import {mkdir, readFile, writeFile} from 'node:fs/promises';
 import {basename, dirname, extname, join} from 'node:path';
 import type {MappingItem, RestoreDocxPayload, RestoreDocxResult} from '@app/shared';
@@ -13,7 +14,7 @@ type Replacement = {
 };
 
 type TextNodeRef = {
-  element: Element;
+  element: XmlElement;
   text: string;
   start: number;
   end: number;
@@ -140,7 +141,7 @@ function findTokenMatches(text: string, replacements: Replacement[]): RestoreMat
   return matches.sort((a, b) => a.start - b.start);
 }
 
-function rewriteTextNodes(document: Document, textNodes: TextNodeRef[], fullText: string, matches: RestoreMatch[]): void {
+function rewriteTextNodes(document: XmlDocument, textNodes: TextNodeRef[], fullText: string, matches: RestoreMatch[]): void {
   const starts = new Map(matches.map((match) => [match.start, match]));
 
   for (const node of textNodes) {
@@ -170,7 +171,7 @@ function rewriteTextNodes(document: Document, textNodes: TextNodeRef[], fullText
   }
 }
 
-function setElementText(document: Document, element: Element, text: string): void {
+function setElementText(document: XmlDocument, element: XmlElement, text: string): void {
   while (element.firstChild) {
     element.removeChild(element.firstChild);
   }
