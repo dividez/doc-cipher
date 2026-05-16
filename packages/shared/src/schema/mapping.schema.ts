@@ -12,6 +12,7 @@ export const mappingItemSchema = z.object({
 
 export const restoreMappingSchema = z.object({
   version: z.string().min(1),
+  task_id: z.string().min(1).optional(),
   doc_fingerprint: z.string().min(1),
   masked_doc_fingerprint: z.string().min(1),
   created_at: z.string().min(1),

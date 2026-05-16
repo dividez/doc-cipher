@@ -2,12 +2,13 @@ import AdmZip from 'adm-zip';
 import {DOMParser, XMLSerializer} from '@xmldom/xmldom';
 import type {Document as XmlDocument, Element as XmlElement} from '@xmldom/xmldom';
 import {mkdir, readFile, writeFile} from 'node:fs/promises';
-import {basename, dirname, extname, join} from 'node:path';
+import {basename, extname, join} from 'node:path';
 import type {MappingItem, MaskDocxPayload, MaskDocxResult, MaskingRule, RestoreMapping, Settings} from '@app/shared';
 import {settingsSchema} from '@app/shared';
 import {encryptMapping, sha256} from './crypto.service.js';
 import {shouldProcessPart} from './docx-parts.js';
 import {logger} from './log.service.js';
+import {createTaskContext, summarizeRules, writeTaskLog, writeTaskManifest} from './task.service.js';
 
 type TextNodeRef = {
   element: XmlElement;
@@ -30,64 +31,104 @@ type PendingMatch = Omit<Match, 'token'>;
 export async function maskDocx(payload: MaskDocxPayload): Promise<MaskDocxResult> {
   const settings = settingsSchema.parse(payload.settings);
   const inputPath = payload.inputPath;
-  const outputDir = payload.outputDir || join(dirname(inputPath), 'output');
+  const task = await createTaskContext({
+    kind: 'mask',
+    sourcePath: inputPath,
+    outputRoot: payload.outputDir,
+  });
+  const outputDir = task.taskDir;
   const baseName = basename(inputPath, extname(inputPath));
   const maskedDocxPath = join(outputDir, `${baseName}.masked.docx`);
   const restoreFilePath = join(outputDir, `${baseName}.restore.enc`);
-  const originalBuffer = await readFile(inputPath);
-  const originalFingerprint = sha256(originalBuffer);
-  const zip = new AdmZip(inputPath);
-  const counters = new Map<string, number>();
-  const items: MappingItem[] = [];
 
-  for (const entry of zip.getEntries()) {
-    if (!shouldProcessPart(entry.entryName)) {
-      continue;
+  try {
+    await writeTaskLog(task, `Start masking ${basename(inputPath)}`);
+    const originalBuffer = await readFile(inputPath);
+    const originalFingerprint = sha256(originalBuffer);
+    const zip = new AdmZip(inputPath);
+    const counters = new Map<string, number>();
+    const items: MappingItem[] = [];
+
+    for (const entry of zip.getEntries()) {
+      if (!shouldProcessPart(entry.entryName)) {
+        continue;
+      }
+
+      await writeTaskLog(task, `Parse ${entry.entryName}`);
+      const xml = entry.getData().toString('utf8');
+      const {updatedXml, matches} = maskXmlPart(xml, entry.entryName, settings, counters);
+
+      if (matches.length > 0) {
+        zip.updateFile(entry.entryName, Buffer.from(updatedXml, 'utf8'));
+        items.push(...matches.map((match, index) => ({
+          token: match.token,
+          original: match.original,
+          rule_id: match.ruleId,
+          location: {
+            part: entry.entryName,
+            index: index + 1,
+          },
+        })));
+        await writeTaskLog(task, `${entry.entryName} matched ${matches.length} items`);
+      }
     }
 
-    const xml = entry.getData().toString('utf8');
-    const {updatedXml, matches} = maskXmlPart(xml, entry.entryName, settings, counters);
+    await mkdir(outputDir, {recursive: true});
+    const maskedBuffer = zip.toBuffer();
+    const maskedFingerprint = sha256(maskedBuffer);
+    await writeFile(maskedDocxPath, maskedBuffer);
+    await writeTaskLog(task, `Generated ${basename(maskedDocxPath)}`);
 
-    if (matches.length > 0) {
-      zip.updateFile(entry.entryName, Buffer.from(updatedXml, 'utf8'));
-      items.push(...matches.map((match, index) => ({
-        token: match.token,
-        original: match.original,
-        rule_id: match.ruleId,
-        location: {
-          part: entry.entryName,
-          index: index + 1,
-        },
-      })));
-    }
+    const mapping: RestoreMapping = {
+      version: '1.0.0',
+      task_id: task.taskId,
+      doc_fingerprint: originalFingerprint,
+      masked_doc_fingerprint: maskedFingerprint,
+      created_at: new Date().toISOString(),
+      rules_version: settings.version,
+      items,
+    };
+
+    const encrypted = await encryptMapping(mapping, payload.password);
+    await writeFile(restoreFilePath, JSON.stringify(encrypted, null, 2), 'utf8');
+    await writeTaskLog(task, `Generated ${basename(restoreFilePath)}`);
+    await writeTaskManifest(task, {
+      status: 'success',
+      masked_file_name: basename(maskedDocxPath),
+      restore_file_name: basename(restoreFilePath),
+      rules: summarizeRules(settings.rules, items),
+      source_sha256: originalFingerprint,
+      masked_sha256: maskedFingerprint,
+      item_count: items.length,
+    });
+
+    logger().info(`Masked ${basename(inputPath)} -> ${maskedDocxPath}; ${items.length} items`);
+
+    return {
+      taskId: task.taskId,
+      taskDir: task.taskDir,
+      maskedDocxPath,
+      restoreFilePath,
+      manifestPath: task.manifestPath,
+      taskLogPath: task.taskLogPath,
+      sourceSha256: originalFingerprint,
+      maskedSha256: maskedFingerprint,
+      originalFingerprint,
+      maskedFingerprint,
+      itemCount: items.length,
+    };
+  } catch (error) {
+    const message = error instanceof Error ? error.message : '脱敏失败';
+    await writeTaskLog(task, message, 'error');
+    await writeTaskManifest(task, {
+      status: 'failed',
+      masked_file_name: basename(maskedDocxPath),
+      restore_file_name: basename(restoreFilePath),
+      item_count: 0,
+      error_message: message,
+    });
+    throw error;
   }
-
-  await mkdir(outputDir, {recursive: true});
-  const maskedBuffer = zip.toBuffer();
-  const maskedFingerprint = sha256(maskedBuffer);
-  await writeFile(maskedDocxPath, maskedBuffer);
-
-  const mapping: RestoreMapping = {
-    version: '1.0.0',
-    doc_fingerprint: originalFingerprint,
-    masked_doc_fingerprint: maskedFingerprint,
-    created_at: new Date().toISOString(),
-    rules_version: settings.version,
-    items,
-  };
-
-  const encrypted = await encryptMapping(mapping, payload.password);
-  await writeFile(restoreFilePath, JSON.stringify(encrypted, null, 2), 'utf8');
-
-  logger().info(`Masked ${inputPath} -> ${maskedDocxPath}; ${items.length} items`);
-
-  return {
-    maskedDocxPath,
-    restoreFilePath,
-    originalFingerprint,
-    maskedFingerprint,
-    itemCount: items.length,
-  };
 }
 
 function maskXmlPart(

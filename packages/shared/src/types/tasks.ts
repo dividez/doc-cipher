@@ -8,8 +8,14 @@ export type MaskDocxPayload = {
 };
 
 export type MaskDocxResult = {
+  taskId: string;
+  taskDir: string;
   maskedDocxPath: string;
   restoreFilePath: string;
+  manifestPath: string;
+  taskLogPath: string;
+  sourceSha256: string;
+  maskedSha256: string;
   originalFingerprint: string;
   maskedFingerprint: string;
   itemCount: number;
@@ -23,7 +29,12 @@ export type RestoreDocxPayload = {
 };
 
 export type RestoreDocxResult = {
+  taskId: string;
+  taskDir: string;
   restoredDocxPath: string;
+  manifestPath: string;
+  taskLogPath: string;
+  maskedSha256: string;
   restoredFingerprint: string;
   itemCount: number;
 };

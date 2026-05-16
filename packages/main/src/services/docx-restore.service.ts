@@ -2,11 +2,12 @@ import AdmZip from 'adm-zip';
 import {DOMParser, XMLSerializer} from '@xmldom/xmldom';
 import type {Document as XmlDocument, Element as XmlElement} from '@xmldom/xmldom';
 import {mkdir, readFile, writeFile} from 'node:fs/promises';
-import {basename, dirname, extname, join} from 'node:path';
+import {basename, extname, join} from 'node:path';
 import type {MappingItem, RestoreDocxPayload, RestoreDocxResult} from '@app/shared';
 import {decryptMapping, sha256} from './crypto.service.js';
 import {shouldProcessPart} from './docx-parts.js';
 import {logger} from './log.service.js';
+import {createTaskContext, writeTaskLog, writeTaskManifest} from './task.service.js';
 
 type Replacement = {
   token: string;
@@ -27,43 +28,79 @@ type RestoreMatch = {
 };
 
 export async function restoreDocx(payload: RestoreDocxPayload): Promise<RestoreDocxResult> {
-  const maskedBuffer = await readFile(payload.maskedDocxPath);
-  const encrypted = JSON.parse(await readFile(payload.restoreFilePath, 'utf8'));
-  const mapping = await decryptMapping(encrypted, payload.password);
-  const maskedFingerprint = sha256(maskedBuffer);
-
-  if (mapping.masked_doc_fingerprint !== maskedFingerprint) {
-    throw new Error('还原文件与当前脱敏 docx 指纹不匹配');
-  }
-
-  const outputDir = payload.outputDir || join(dirname(payload.maskedDocxPath), 'output');
+  const task = await createTaskContext({
+    kind: 'restore',
+    sourcePath: payload.maskedDocxPath,
+    outputRoot: payload.outputDir,
+  });
+  const outputDir = task.taskDir;
   const baseName = basename(payload.maskedDocxPath, extname(payload.maskedDocxPath)).replace(/\.masked$/, '');
   const restoredDocxPath = join(outputDir, `${baseName}.restored.docx`);
-  const zip = new AdmZip(maskedBuffer);
-  const itemsByPart = groupItemsByPart(mapping.items);
 
-  for (const entry of zip.getEntries()) {
-    const replacements = itemsByPart.get(entry.entryName);
+  try {
+    await writeTaskLog(task, `Start restoring ${basename(payload.maskedDocxPath)}`);
+    const maskedBuffer = await readFile(payload.maskedDocxPath);
+    const encrypted = JSON.parse(await readFile(payload.restoreFilePath, 'utf8'));
+    const mapping = await decryptMapping(encrypted, payload.password);
+    const maskedFingerprint = sha256(maskedBuffer);
 
-    if (!replacements || !shouldProcessPart(entry.entryName)) {
-      continue;
+    if (mapping.masked_doc_fingerprint !== maskedFingerprint) {
+      throw new Error('还原文件与当前脱敏 docx 指纹不匹配');
     }
 
-    const xml = entry.getData().toString('utf8');
-    const updatedXml = restoreXmlPart(xml, replacements);
-    zip.updateFile(entry.entryName, Buffer.from(updatedXml, 'utf8'));
+    const zip = new AdmZip(maskedBuffer);
+    const itemsByPart = groupItemsByPart(mapping.items);
+
+    for (const entry of zip.getEntries()) {
+      const replacements = itemsByPart.get(entry.entryName);
+
+      if (!replacements || !shouldProcessPart(entry.entryName)) {
+        continue;
+      }
+
+      await writeTaskLog(task, `Restore ${entry.entryName}`);
+      const xml = entry.getData().toString('utf8');
+      const updatedXml = restoreXmlPart(xml, replacements);
+      zip.updateFile(entry.entryName, Buffer.from(updatedXml, 'utf8'));
+    }
+
+    await mkdir(outputDir, {recursive: true});
+    const restoredBuffer = zip.toBuffer();
+    const restoredFingerprint = sha256(restoredBuffer);
+    await writeFile(restoredDocxPath, restoredBuffer);
+    await writeTaskLog(task, `Generated ${basename(restoredDocxPath)}`);
+    await writeTaskManifest(task, {
+      status: 'success',
+      restore_file_name: basename(payload.restoreFilePath),
+      restored_file_name: basename(restoredDocxPath),
+      masked_sha256: maskedFingerprint,
+      restored_sha256: restoredFingerprint,
+      item_count: mapping.items.length,
+    });
+    logger().info(`Restored ${basename(payload.maskedDocxPath)} -> ${restoredDocxPath}; ${mapping.items.length} items`);
+
+    return {
+      taskId: task.taskId,
+      taskDir: task.taskDir,
+      restoredDocxPath,
+      manifestPath: task.manifestPath,
+      taskLogPath: task.taskLogPath,
+      maskedSha256: maskedFingerprint,
+      restoredFingerprint,
+      itemCount: mapping.items.length,
+    };
+  } catch (error) {
+    const message = error instanceof Error ? error.message : '还原失败';
+    await writeTaskLog(task, message, 'error');
+    await writeTaskManifest(task, {
+      status: 'failed',
+      restore_file_name: basename(payload.restoreFilePath),
+      restored_file_name: basename(restoredDocxPath),
+      item_count: 0,
+      error_message: message,
+    });
+    throw error;
   }
-
-  await mkdir(outputDir, {recursive: true});
-  const restoredBuffer = zip.toBuffer();
-  await writeFile(restoredDocxPath, restoredBuffer);
-  logger().info(`Restored ${payload.maskedDocxPath} -> ${restoredDocxPath}; ${mapping.items.length} items`);
-
-  return {
-    restoredDocxPath,
-    restoredFingerprint: sha256(restoredBuffer),
-    itemCount: mapping.items.length,
-  };
 }
 
 function groupItemsByPart(items: MappingItem[]): Map<string, Replacement[]> {

@@ -1,10 +1,10 @@
-import {app} from 'electron';
 import {mkdir, readFile, writeFile} from 'node:fs/promises';
 import {join} from 'node:path';
 import {defaultSettings, settingsSchema, type Settings} from '@app/shared';
+import {getAppDataPaths} from './app-paths.service.js';
 
 function settingsPath(): string {
-  return join(app.getPath('userData'), 'config', 'setting.json');
+  return join(getAppDataPaths().configDir, 'setting.json');
 }
 
 export async function readSettings(): Promise<Settings> {
