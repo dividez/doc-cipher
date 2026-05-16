@@ -15,6 +15,7 @@ DocCipher 以完全离线的 Electron 桌面客户端处理 `docx` 文档：
 - 脱敏文件只保留唯一 token
 - 原文只进入独立的加密 `restore.enc`
 - 还原前校验 `restore.enc` 是否属于当前 masked docx
+- 还原只基于稳定 token 做全文替换，不依赖 OOXML 节点、段落序号、XML offset 或 `<w:t>` 顺序
 
 ## 技术栈
 
@@ -104,3 +105,18 @@ auth tag
 ```
 
 映射明文只在内存中短暂存在，落盘为加密 JSON 载荷。
+
+`restore.enc` 的核心语义是 Token Vault：
+
+```json
+{
+  "version": "1.0.0",
+  "task_id": "task_20260517_120000_ab12",
+  "tokens": {
+    "[PHONE_000001]": "13800138000",
+    "[ID_CARD_000001]": "430203197802116050"
+  }
+}
+```
+
+`items.location` 只能作为调试元信息，不能参与还原。AI 审查或改写后，OOXML 结构可能被重排、拆分或重新生成；还原流程必须遍历文本 part 并按 token 替换回原文。

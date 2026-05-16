@@ -86,6 +86,7 @@ export async function maskDocx(payload: MaskDocxPayload): Promise<MaskDocxResult
       masked_doc_fingerprint: maskedFingerprint,
       created_at: new Date().toISOString(),
       rules_version: settings.version,
+      tokens: Object.fromEntries(items.map((item) => [item.token, item.original])),
       items,
     };
 

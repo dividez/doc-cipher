@@ -3,7 +3,7 @@ import {DOMParser, XMLSerializer} from '@xmldom/xmldom';
 import type {Document as XmlDocument, Element as XmlElement} from '@xmldom/xmldom';
 import {mkdir, readFile, writeFile} from 'node:fs/promises';
 import {basename, extname, join} from 'node:path';
-import type {MappingItem, RestoreDocxPayload, RestoreDocxResult} from '@app/shared';
+import type {RestoreDocxPayload, RestoreDocxResult} from '@app/shared';
 import {decryptMapping, sha256} from './crypto.service.js';
 import {shouldProcessPart} from './docx-parts.js';
 import {logger} from './log.service.js';
@@ -49,12 +49,13 @@ export async function restoreDocx(payload: RestoreDocxPayload): Promise<RestoreD
     }
 
     const zip = new AdmZip(maskedBuffer);
-    const itemsByPart = groupItemsByPart(mapping.items);
+    const tokenVault = mapping.tokens ?? Object.fromEntries(mapping.items.map((item) => [item.token, item.original]));
+    const replacements = Object.entries(tokenVault)
+      .map(([token, original]) => ({token, original}))
+      .sort((a, b) => b.token.length - a.token.length);
 
     for (const entry of zip.getEntries()) {
-      const replacements = itemsByPart.get(entry.entryName);
-
-      if (!replacements || !shouldProcessPart(entry.entryName)) {
+      if (!shouldProcessPart(entry.entryName)) {
         continue;
       }
 
@@ -101,21 +102,6 @@ export async function restoreDocx(payload: RestoreDocxPayload): Promise<RestoreD
     });
     throw error;
   }
-}
-
-function groupItemsByPart(items: MappingItem[]): Map<string, Replacement[]> {
-  const grouped = new Map<string, Replacement[]>();
-
-  for (const item of items) {
-    const replacements = grouped.get(item.location.part) ?? [];
-    replacements.push({
-      token: item.token,
-      original: item.original,
-    });
-    grouped.set(item.location.part, replacements);
-  }
-
-  return grouped;
 }
 
 function restoreXmlPart(xml: string, replacements: Replacement[]): string {

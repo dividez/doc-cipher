@@ -17,6 +17,7 @@ export const restoreMappingSchema = z.object({
   masked_doc_fingerprint: z.string().min(1),
   created_at: z.string().min(1),
   rules_version: z.string().min(1),
+  tokens: z.record(z.string().min(1), z.string()).optional(),
   items: z.array(mappingItemSchema),
 });
 
