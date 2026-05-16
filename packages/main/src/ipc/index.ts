@@ -1,6 +1,6 @@
 import type {AppModule} from '../AppModule.js';
 import type {ModuleContext} from '../ModuleContext.js';
-import {dialog, ipcMain} from 'electron';
+import {dialog, ipcMain, shell} from 'electron';
 import {settingsSchema, type MaskDocxPayload, type RestoreDocxPayload} from '@app/shared';
 import {maskDocx} from '../services/docx-mask.service.js';
 import {restoreDocx} from '../services/docx-restore.service.js';
@@ -60,6 +60,10 @@ class IpcModule implements AppModule {
 
     ipcMain.handle('docx:restore', async (_, payload: RestoreDocxPayload) => await restoreDocx(payload));
     ipcMain.handle('logs:read', async () => await readAppLogs());
+
+    ipcMain.handle('shell:show-item-in-folder', async (_, filePath: string) => {
+      shell.showItemInFolder(filePath);
+    });
   }
 }
 

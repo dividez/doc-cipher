@@ -21,4 +21,5 @@ export const localApi = {
   readSettings: () => invoke<Settings>('settings:read'),
   saveSettings: (payload: Settings) => invoke<Settings>('settings:save', payload),
   readLogs: () => invoke<AppLogEntry[]>('logs:read'),
+  showItemInFolder: (filePath: string) => invoke<void>('shell:show-item-in-folder', filePath),
 };

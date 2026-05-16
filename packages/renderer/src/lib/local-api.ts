@@ -16,12 +16,28 @@ export type LocalApi = {
   readSettings: () => Promise<Settings>;
   saveSettings: (payload: Settings) => Promise<Settings>;
   readLogs: () => Promise<AppLogEntry[]>;
+  showItemInFolder: (filePath: string) => Promise<void>;
 };
 
 declare global {
   interface Window {
-    localApi: LocalApi;
+    localApi?: LocalApi;
   }
 }
 
-export const localApi = window.localApi;
+export function isLocalApiReady(): boolean {
+  const api = window.localApi;
+  return (
+    !!api
+    && typeof api.selectDocx === 'function'
+    && typeof api.readLogs === 'function'
+    && typeof api.readSettings === 'function'
+  );
+}
+
+export function getLocalApi(): LocalApi {
+  if (!isLocalApiReady()) {
+    throw new Error('服务不可用');
+  }
+  return window.localApi as LocalApi;
+}
