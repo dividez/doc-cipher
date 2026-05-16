@@ -13,31 +13,31 @@ importers:
         version: link:packages/main
     devDependencies:
       '@npmcli/map-workspaces':
-        specifier: latest
+        specifier: 5.0.3
         version: 5.0.3
       '@playwright/test':
-        specifier: latest
+        specifier: 1.60.0
         version: 1.58.2
       '@types/node':
-        specifier: latest
+        specifier: 25.8.0
         version: 25.5.0
       create-vite:
-        specifier: latest
+        specifier: 9.0.7
         version: 9.0.3
       electron:
-        specifier: latest
+        specifier: 42.1.0
         version: 41.0.3
       electron-builder:
-        specifier: latest
+        specifier: 26.8.1
         version: 26.8.1(electron-builder-squirrel-windows@26.8.1)
       glob:
-        specifier: latest
+        specifier: 13.0.6
         version: 13.0.6
       playwright:
-        specifier: latest
+        specifier: 1.60.0
         version: 1.58.2
       vite:
-        specifier: latest
+        specifier: 8.0.13
         version: 8.0.3(@emnapi/core@1.10.0)(@emnapi/runtime@1.10.0)(@types/node@25.5.0)
 
   packages/electron-versions: {}
@@ -56,35 +56,35 @@ importers:
         specifier: workspace:*
         version: link:../shared
       '@xmldom/xmldom':
-        specifier: latest
+        specifier: 0.9.10
         version: 0.8.10
       adm-zip:
-        specifier: latest
+        specifier: 0.5.17
         version: 0.5.16
       electron-log:
-        specifier: latest
+        specifier: 5.4.4
         version: 5.4.3
       electron-updater:
-        specifier: latest
+        specifier: 6.8.3
         version: 6.8.3
       zod:
-        specifier: latest
+        specifier: 4.4.3
         version: 4.1.13
     devDependencies:
       '@app/electron-versions':
         specifier: workspace:*
         version: link:../electron-versions
       '@types/adm-zip':
-        specifier: latest
+        specifier: 0.5.8
         version: 0.5.8
       electron-devtools-installer:
-        specifier: latest
+        specifier: 4.0.0
         version: 4.0.0
       typescript:
-        specifier: latest
+        specifier: 6.0.3
         version: 6.0.2
       vite:
-        specifier: latest
+        specifier: 8.0.13
         version: 8.0.3(@emnapi/core@1.10.0)(@emnapi/runtime@1.10.0)(@types/node@25.5.0)
 
   packages/preload:
@@ -97,13 +97,13 @@ importers:
         specifier: workspace:*
         version: link:../electron-versions
       mlly:
-        specifier: latest
+        specifier: 1.8.2
         version: 1.8.2
       typescript:
-        specifier: latest
+        specifier: 6.0.3
         version: 6.0.2
       vite:
-        specifier: latest
+        specifier: 8.0.13
         version: 8.0.3(@emnapi/core@1.10.0)(@emnapi/runtime@1.10.0)(@types/node@25.5.0)
 
   packages/renderer:
@@ -112,42 +112,42 @@ importers:
         specifier: workspace:*
         version: link:../shared
       lucide-react:
-        specifier: latest
+        specifier: 1.16.0
         version: 0.468.0(react@19.2.1)
       react:
-        specifier: latest
+        specifier: 19.2.6
         version: 19.2.1
       react-dom:
-        specifier: latest
+        specifier: 19.2.6
         version: 19.2.1(react@19.2.1)
     devDependencies:
       '@types/react':
-        specifier: latest
+        specifier: 19.2.14
         version: 19.2.7
       '@types/react-dom':
-        specifier: latest
+        specifier: 19.2.3
         version: 19.2.3(@types/react@19.2.7)
       '@vitejs/plugin-react':
-        specifier: latest
+        specifier: 6.0.2
         version: 6.0.2(vite@8.0.3)
       typescript:
-        specifier: latest
+        specifier: 6.0.3
         version: 6.0.2
       vite:
-        specifier: latest
+        specifier: 8.0.13
         version: 8.0.3(@emnapi/core@1.10.0)(@emnapi/runtime@1.10.0)(@types/node@25.5.0)
 
   packages/shared:
     dependencies:
       zod:
-        specifier: latest
+        specifier: 4.4.3
         version: 4.1.13
     devDependencies:
       typescript:
-        specifier: latest
+        specifier: 6.0.3
         version: 6.0.2
       vite:
-        specifier: latest
+        specifier: 8.0.13
         version: 8.0.3(@emnapi/core@1.10.0)(@emnapi/runtime@1.10.0)(@types/node@25.5.0)
 
 packages:

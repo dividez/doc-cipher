@@ -12,11 +12,11 @@
     }
   },
   "dependencies": {
-    "zod": "latest"
+    "zod": "4.4.3"
   },
   "devDependencies": {
-    "typescript": "latest",
-    "vite": "latest"
+    "typescript": "6.0.3",
+    "vite": "8.0.13"
   },
   "files": [
     "dist/**",

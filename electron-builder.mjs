@@ -5,11 +5,31 @@ import {pathToFileURL} from 'node:url';
 
 export default /** @type import('electron-builder').Configuration */
 ({
+  appId: 'com.doccipher.app',
+  productName: pkg.productName ?? 'DocCipher',
   directories: {
     output: 'dist',
     buildResources: 'buildResources',
   },
   generateUpdatesFilesForAllChannels: true,
+  asar: true,
+  mac: {
+    category: 'public.app-category.productivity',
+    target: ['dmg', 'zip'],
+    identity: null,
+    hardenedRuntime: false,
+    gatekeeperAssess: false,
+  },
+  win: {
+    target: ['nsis', 'zip'],
+  },
+  nsis: {
+    oneClick: false,
+    perMachine: false,
+    allowToChangeInstallationDirectory: true,
+    createDesktopShortcut: true,
+    createStartMenuShortcut: true,
+  },
   linux: {
     target: ['deb'],
   },

@@ -15,17 +15,17 @@
     "@app/preload": "workspace:*",
     "@app/renderer": "workspace:*",
     "@app/shared": "workspace:*",
-    "@xmldom/xmldom": "latest",
-    "adm-zip": "latest",
-    "electron-log": "latest",
-    "electron-updater": "latest",
-    "zod": "latest"
+    "@xmldom/xmldom": "0.9.10",
+    "adm-zip": "0.5.17",
+    "electron-log": "5.4.4",
+    "electron-updater": "6.8.3",
+    "zod": "4.4.3"
   },
   "devDependencies": {
     "@app/electron-versions": "workspace:*",
-    "@types/adm-zip": "latest",
-    "electron-devtools-installer": "latest",
-    "typescript": "latest",
-    "vite": "latest"
+    "@types/adm-zip": "0.5.8",
+    "electron-devtools-installer": "4.0.0",
+    "typescript": "6.0.3",
+    "vite": "8.0.13"
   }
 }
