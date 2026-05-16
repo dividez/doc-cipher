@@ -113,20 +113,20 @@ importers:
         version: link:../shared
       lucide-react:
         specifier: latest
-        version: 0.468.0(react@19.2.1)
+        version: 0.468.0(react@19.2.6)
       react:
         specifier: latest
-        version: 19.2.1
+        version: 19.2.6
       react-dom:
         specifier: latest
-        version: 19.2.1(react@19.2.1)
+        version: 19.2.1(react@19.2.6)
     devDependencies:
       '@types/react':
         specifier: latest
-        version: 19.2.7
+        version: 19.2.14
       '@types/react-dom':
         specifier: latest
-        version: 19.2.3(@types/react@19.2.7)
+        version: 19.2.3(@types/react@19.2.14)
       '@vitejs/plugin-react':
         specifier: latest
         version: 6.0.2(vite@8.0.3)
@@ -651,16 +651,16 @@ packages:
     dev: true
     optional: true
 
-  /@types/react-dom@19.2.3(@types/react@19.2.7):
+  /@types/react-dom@19.2.3(@types/react@19.2.14):
     resolution: {integrity: sha512-jp2L/eY6fn+KgVVQAOqYItbF0VY/YApe5Mz2F0aykSO8gx31bYCZyvSeYxCHKvzHG5eZjc+zyaS5BrBWya2+kQ==}
     peerDependencies:
       '@types/react': ^19.2.0
     dependencies:
-      '@types/react': 19.2.7
+      '@types/react': 19.2.14
     dev: true
 
-  /@types/react@19.2.7:
-    resolution: {integrity: sha512-MWtvHrGZLFttgeEj28VXHxpmwYbor/ATPYbBfSFZEIRK0ecCFLl2Qo55z52Hss+UV9CRN7trSeq1zbgx7YDWWg==}
+  /@types/react@19.2.14:
+    resolution: {integrity: sha512-ilcTH/UniCkMdtexkoCN0bI7pMcJDvmQFPvuPvmEaYA/NSfFTAgdUSLAoVjaRJm7+6PvcM+q1zYOwS4wTYMF9w==}
     dependencies:
       csstype: 3.2.3
     dev: true
@@ -2043,12 +2043,12 @@ packages:
       yallist: 4.0.0
     dev: true
 
-  /lucide-react@0.468.0(react@19.2.1):
+  /lucide-react@0.468.0(react@19.2.6):
     resolution: {integrity: sha512-6koYRhnM2N0GGZIdXzSeiNwguv1gt/FAjZOiPl76roBi3xKEXa4WmfpxgQwTTL4KipXjefrnf3oV4IsYhi4JFA==}
     peerDependencies:
       react: ^16.5.1 || ^17.0.0 || ^18.0.0 || ^19.0.0-rc
     dependencies:
-      react: 19.2.1
+      react: 19.2.6
     dev: false
 
   /matcher@3.0.0:
@@ -2422,17 +2422,17 @@ packages:
     engines: {node: '>=10'}
     dev: true
 
-  /react-dom@19.2.1(react@19.2.1):
+  /react-dom@19.2.1(react@19.2.6):
     resolution: {integrity: sha512-ibrK8llX2a4eOskq1mXKu/TGZj9qzomO+sNfO98M6d9zIPOEhlBkMkBUBLd1vgS0gQsLDBzA+8jJBVXDnfHmJg==}
     peerDependencies:
       react: ^19.2.1
     dependencies:
-      react: 19.2.1
+      react: 19.2.6
       scheduler: 0.27.0
     dev: false
 
-  /react@19.2.1:
-    resolution: {integrity: sha512-DGrYcCWK7tvYMnWh79yrPHt+vdx9tY+1gPZa7nJQtO/p8bLTDaHp4dzwEhQB7pZ4Xe3ok4XKuEPrVuc+wlpkmw==}
+  /react@19.2.6:
+    resolution: {integrity: sha512-sfWGGfavi0xr8Pg0sVsyHMAOziVYKgPLNrS7ig+ivMNb3wbCBw3KxtflsGBAwD3gYQlE/AEZsTLgToRrSCjb0Q==}
     engines: {node: '>=0.10.0'}
     dev: false
 
