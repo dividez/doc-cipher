@@ -1,7 +1,13 @@
-import {createCipheriv, createDecipheriv, createHash, randomBytes, scrypt as scryptCallback} from 'node:crypto';
-import {promisify} from 'node:util';
-import type {EncryptedMapping, RestoreMapping} from '@app/shared';
-import {encryptedMappingSchema, restoreMappingSchema} from '@app/shared';
+import {
+  createCipheriv,
+  createDecipheriv,
+  createHash,
+  randomBytes,
+  scrypt as scryptCallback,
+} from 'node:crypto';
+import { promisify } from 'node:util';
+import type { EncryptedMapping, RestoreMapping } from '@app/shared';
+import { encryptedMappingSchema, restoreMappingSchema } from '@app/shared';
 
 const scrypt = promisify(scryptCallback);
 const KEY_LENGTH = 32;
@@ -15,10 +21,13 @@ async function deriveKey(password: string, salt: Buffer): Promise<Buffer> {
     throw new Error('密码不能为空');
   }
 
-  return await scrypt(password, salt, KEY_LENGTH) as Buffer;
+  return (await scrypt(password, salt, KEY_LENGTH)) as Buffer;
 }
 
-export async function encryptMapping(mapping: RestoreMapping, password: string): Promise<EncryptedMapping> {
+export async function encryptMapping(
+  mapping: RestoreMapping,
+  password: string,
+): Promise<EncryptedMapping> {
   const salt = randomBytes(16);
   const iv = randomBytes(12);
   const key = await deriveKey(password, salt);

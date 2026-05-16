@@ -1,16 +1,16 @@
-import type {AppModule} from '../AppModule.js';
-import type {ModuleContext} from '../ModuleContext.js';
-import {copyFile} from 'node:fs/promises';
-import {basename, dirname, extname, join} from 'node:path';
-import {dialog, ipcMain, shell} from 'electron';
-import {settingsSchema, type MaskDocxPayload, type RestoreDocxPayload} from '@app/shared';
-import {maskDocx} from '../services/docx-mask.service.js';
-import {restoreDocx} from '../services/docx-restore.service.js';
-import {readSettings, saveSettings} from '../services/settings.service.js';
-import {configureLogger, logger, readAppLogs} from '../services/log.service.js';
+import type { AppModule } from '../AppModule.js';
+import type { ModuleContext } from '../ModuleContext.js';
+import { copyFile } from 'node:fs/promises';
+import { basename, dirname, extname, join } from 'node:path';
+import { dialog, ipcMain, shell } from 'electron';
+import { settingsSchema, type MaskDocxPayload, type RestoreDocxPayload } from '@app/shared';
+import { maskDocx } from '../services/docx-mask.service.js';
+import { restoreDocx } from '../services/docx-restore.service.js';
+import { readSettings, saveSettings } from '../services/settings.service.js';
+import { configureLogger, logger, readAppLogs } from '../services/log.service.js';
 
 class IpcModule implements AppModule {
-  async enable({app}: ModuleContext): Promise<void> {
+  async enable({ app }: ModuleContext): Promise<void> {
     await app.whenReady();
     configureLogger();
 
@@ -22,8 +22,8 @@ class IpcModule implements AppModule {
       };
     });
 
-    ipcMain.handle('docx:smoke-mask', async (_, payload: {filePath: string}) => {
-      const {filePath} = payload;
+    ipcMain.handle('docx:smoke-mask', async (_, payload: { filePath: string }) => {
+      const { filePath } = payload;
       const dir = dirname(filePath);
       const ext = extname(filePath);
       const base = basename(filePath, ext);
@@ -40,24 +40,20 @@ class IpcModule implements AppModule {
       const result = await dialog.showOpenDialog({
         title: '选择 Word 文档',
         properties: ['openFile'],
-        filters: [
-          {name: 'Word docx', extensions: ['docx']},
-        ],
+        filters: [{ name: 'Word docx', extensions: ['docx'] }],
       });
 
-      return result.canceled ? null : result.filePaths[0] ?? null;
+      return result.canceled ? null : (result.filePaths[0] ?? null);
     });
 
     ipcMain.handle('file:select-restore-file', async () => {
       const result = await dialog.showOpenDialog({
         title: '选择加密还原文件',
         properties: ['openFile'],
-        filters: [
-          {name: 'DocCipher restore file', extensions: ['enc']},
-        ],
+        filters: [{ name: 'DocCipher restore file', extensions: ['enc'] }],
       });
 
-      return result.canceled ? null : result.filePaths[0] ?? null;
+      return result.canceled ? null : (result.filePaths[0] ?? null);
     });
 
     ipcMain.handle('file:select-output-dir', async () => {
@@ -66,7 +62,7 @@ class IpcModule implements AppModule {
         properties: ['openDirectory', 'createDirectory'],
       });
 
-      return result.canceled ? null : result.filePaths[0] ?? null;
+      return result.canceled ? null : (result.filePaths[0] ?? null);
     });
 
     ipcMain.handle('settings:read', async () => await readSettings());
@@ -78,11 +74,16 @@ class IpcModule implements AppModule {
     });
 
     ipcMain.handle('docx:mask', async (_, payload: MaskDocxPayload) => {
-      const settings = payload.settings ? settingsSchema.parse(payload.settings) : await readSettings();
-      return await maskDocx({...payload, settings});
+      const settings = payload.settings
+        ? settingsSchema.parse(payload.settings)
+        : await readSettings();
+      return await maskDocx({ ...payload, settings });
     });
 
-    ipcMain.handle('docx:restore', async (_, payload: RestoreDocxPayload) => await restoreDocx(payload));
+    ipcMain.handle(
+      'docx:restore',
+      async (_, payload: RestoreDocxPayload) => await restoreDocx(payload),
+    );
     ipcMain.handle('logs:read', async () => await readAppLogs());
 
     ipcMain.handle('shell:show-item-in-folder', async (_, filePath: string) => {

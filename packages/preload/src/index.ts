@@ -7,19 +7,19 @@ import type {
   Settings,
 } from '@app/shared';
 
-const {ipcRenderer} = require('electron') as typeof import('electron');
+const { ipcRenderer } = require('electron') as typeof import('electron');
 
 function invoke<T>(channel: string, payload?: unknown): Promise<T> {
   return ipcRenderer.invoke(channel, payload) as Promise<T>;
 }
 
 export const localApi = {
-  ping: () => invoke<{message: string; time: string}>('app:ping'),
+  ping: () => invoke<{ message: string; time: string }>('app:ping'),
   selectDocx: () => invoke<string | null>('file:select-docx'),
   selectRestoreFile: () => invoke<string | null>('file:select-restore-file'),
   selectOutputDir: () => invoke<string | null>('file:select-output-dir'),
-  smokeMaskDocx: (payload: {filePath: string}) =>
-    invoke<{success: boolean; outputPath: string}>('docx:smoke-mask', payload),
+  smokeMaskDocx: (payload: { filePath: string }) =>
+    invoke<{ success: boolean; outputPath: string }>('docx:smoke-mask', payload),
   maskDocx: (payload: MaskDocxPayload) => invoke<MaskDocxResult>('docx:mask', payload),
   restoreDocx: (payload: RestoreDocxPayload) => invoke<RestoreDocxResult>('docx:restore', payload),
   readSettings: () => invoke<Settings>('settings:read'),

@@ -28,7 +28,6 @@ export default /**
   plugins: [handleHotReload()],
 });
 
-
 /**
  * Implement Electron webview reload when some file was changed
  * @return {import('vite').Plugin}
@@ -45,7 +44,9 @@ function handleHotReload() {
         return;
       }
 
-      const rendererWatchServerProvider = config.plugins.find(p => p.name === '@app/renderer-watch-server-provider');
+      const rendererWatchServerProvider = config.plugins.find(
+        (p) => p.name === '@app/renderer-watch-server-provider',
+      );
       if (!rendererWatchServerProvider) {
         throw new Error('Renderer watch server provider not found');
       }

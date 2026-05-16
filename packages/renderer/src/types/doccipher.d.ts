@@ -8,7 +8,7 @@ declare global {
         time: string;
       }>;
       selectDocx: () => Promise<string | null>;
-      maskDocx: (payload: {filePath: string}) => Promise<{
+      maskDocx: (payload: { filePath: string }) => Promise<{
         success: boolean;
         outputPath: string;
       }>;

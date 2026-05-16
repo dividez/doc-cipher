@@ -1,4 +1,4 @@
-import type {Settings} from '../schema/settings.schema.js';
+import type { Settings } from '../schema/settings.schema.js';
 
 export type MaskDocxPayload = {
   inputPath: string;

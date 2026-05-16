@@ -1,4 +1,4 @@
-import {z} from 'zod';
+import { z } from 'zod';
 
 export const mappingItemSchema = z.object({
   token: z.string().min(1),

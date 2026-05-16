@@ -1,4 +1,4 @@
-import {spawn} from 'child_process';
+import { spawn } from 'child_process';
 import electronPath from 'electron';
 
 export default /**
@@ -32,18 +32,14 @@ export default /**
     emptyOutDir: true,
     reportCompressedSize: false,
   },
-  plugins: [
-    handleHotReload(),
-  ],
+  plugins: [handleHotReload()],
 });
-
 
 /**
  * Implement Electron app reload when some file was changed
  * @return {import('vite').Plugin}
  */
 function handleHotReload() {
-
   /** @type {ChildProcess} */
   let electronApp = null;
 
@@ -58,7 +54,9 @@ function handleHotReload() {
         return;
       }
 
-      const rendererWatchServerProvider = config.plugins.find(p => p.name === '@app/renderer-watch-server-provider');
+      const rendererWatchServerProvider = config.plugins.find(
+        (p) => p.name === '@app/renderer-watch-server-provider',
+      );
       if (!rendererWatchServerProvider) {
         throw new Error('Renderer watch server provider not found');
       }

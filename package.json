@@ -23,7 +23,11 @@
     "typecheck": "pnpm -r --if-present typecheck",
     "create-renderer": "cd packages && node ./integrate-renderer/create-renderer.js",
     "integrate-renderer": "npm start --workspace @app/integrate-renderer",
-    "init": "npm run create-renderer && npm run integrate-renderer && npm install"
+    "init": "npm run create-renderer && npm run integrate-renderer && npm install",
+    "prepare": "husky",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "precommit": "pnpm format:check && pnpm typecheck"
   },
   "devDependencies": {
     "@npmcli/map-workspaces": "5.0.3",
@@ -33,7 +37,9 @@
     "electron": "42.1.0",
     "electron-builder": "26.8.1",
     "glob": "13.0.6",
+    "husky": "^9.1.7",
     "playwright": "1.60.0",
+    "prettier": "^3.8.3",
     "vite": "8.0.13"
   },
   "dependencies": {

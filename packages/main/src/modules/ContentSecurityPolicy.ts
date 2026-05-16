@@ -1,8 +1,8 @@
-import type {AppModule} from '../AppModule.js';
-import type {ModuleContext} from '../ModuleContext.js';
+import type { AppModule } from '../AppModule.js';
+import type { ModuleContext } from '../ModuleContext.js';
 
 export class ContentSecurityPolicy implements AppModule {
-  enable({app}: ModuleContext): void {
+  enable({ app }: ModuleContext): void {
     app.on('web-contents-created', (_, contents) => {
       contents.session.webRequest.onHeadersReceived((details, callback) => {
         const devPolicy = [

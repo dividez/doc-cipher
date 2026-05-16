@@ -8,11 +8,13 @@ import type {
 } from '@app/shared';
 
 export type LocalApi = {
-  ping: () => Promise<{message: string; time: string}>;
+  ping: () => Promise<{ message: string; time: string }>;
   selectDocx: () => Promise<string | null>;
   selectRestoreFile: () => Promise<string | null>;
   selectOutputDir: () => Promise<string | null>;
-  smokeMaskDocx: (payload: {filePath: string}) => Promise<{success: boolean; outputPath: string}>;
+  smokeMaskDocx: (payload: {
+    filePath: string;
+  }) => Promise<{ success: boolean; outputPath: string }>;
   maskDocx: (payload: MaskDocxPayload) => Promise<MaskDocxResult>;
   restoreDocx: (payload: RestoreDocxPayload) => Promise<RestoreDocxResult>;
   readSettings: () => Promise<Settings>;
@@ -30,10 +32,10 @@ declare global {
 export function isLocalApiReady(): boolean {
   const api = window.localApi;
   return (
-    !!api
-    && typeof api.selectDocx === 'function'
-    && typeof api.readLogs === 'function'
-    && typeof api.readSettings === 'function'
+    !!api &&
+    typeof api.selectDocx === 'function' &&
+    typeof api.readLogs === 'function' &&
+    typeof api.readSettings === 'function'
   );
 }
 

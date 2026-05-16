@@ -44,7 +44,7 @@ webSecurity: true
 preload 只暴露：
 
 ```ts
-window.localApi
+window.localApi;
 ```
 
 IPC 白名单包括文件选择、设置读写、脱敏、还原和日志读取。

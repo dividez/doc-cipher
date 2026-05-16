@@ -1,8 +1,8 @@
-import {mkdir, readFile, writeFile} from 'node:fs/promises';
-import {appendFile} from 'node:fs/promises';
-import {basename, dirname, extname, join} from 'node:path';
-import type {MappingItem, MaskingRule} from '@app/shared';
-import {ensureAppDataDirs} from './app-paths.service.js';
+import { mkdir, readFile, writeFile } from 'node:fs/promises';
+import { appendFile } from 'node:fs/promises';
+import { basename, dirname, extname, join } from 'node:path';
+import type { MappingItem, MaskingRule } from '@app/shared';
+import { ensureAppDataDirs } from './app-paths.service.js';
 
 export type TaskKind = 'mask' | 'restore';
 export type TaskStatus = 'running' | 'success' | 'failed';
@@ -76,8 +76,8 @@ export async function createTaskContext(payload: {
   const manifestPath = join(taskDir, 'manifest.json');
   const taskLogPath = join(taskDir, 'task.log');
 
-  await mkdir(taskDir, {recursive: true});
-  await writeTaskLog({taskLogPath}, `Task ${taskId} created`);
+  await mkdir(taskDir, { recursive: true });
+  await writeTaskLog({ taskLogPath }, `Task ${taskId} created`);
 
   return {
     taskId,
@@ -99,7 +99,13 @@ export async function writeTaskLog(
   await appendFile(task.taskLogPath, line, 'utf8');
 }
 
-export async function writeTaskManifest(task: TaskContext, manifest: Omit<TaskManifest, 'version' | 'task_id' | 'kind' | 'source_file_name' | 'created_at' | 'updated_at'>): Promise<TaskManifest> {
+export async function writeTaskManifest(
+  task: TaskContext,
+  manifest: Omit<
+    TaskManifest,
+    'version' | 'task_id' | 'kind' | 'source_file_name' | 'created_at' | 'updated_at'
+  >,
+): Promise<TaskManifest> {
   const fullManifest: TaskManifest = {
     version: '1.0.0',
     task_id: task.taskId,
@@ -130,7 +136,7 @@ export function summarizeRules(rules: MaskingRule[], items: MappingItem[]): Rule
 }
 
 async function updateTaskIndex(task: TaskContext, manifest: TaskManifest): Promise<void> {
-  const {tasksDir} = await ensureAppDataDirs();
+  const { tasksDir } = await ensureAppDataDirs();
   const indexPath = join(tasksDir, 'task-index.json');
   const index = await readTaskIndex(indexPath);
   const entry = {
@@ -144,16 +150,24 @@ async function updateTaskIndex(task: TaskContext, manifest: TaskManifest): Promi
     updated_at: manifest.updated_at,
     item_count: manifest.item_count,
   };
-  const nextTasks = [
-    entry,
-    ...index.tasks.filter((item) => item.task_id !== task.taskId),
-  ].slice(0, 500);
+  const nextTasks = [entry, ...index.tasks.filter((item) => item.task_id !== task.taskId)].slice(
+    0,
+    500,
+  );
 
-  await writeFile(indexPath, JSON.stringify({
-    version: '1.0.0',
-    updated_at: new Date().toISOString(),
-    tasks: nextTasks,
-  } satisfies TaskIndex, null, 2), 'utf8');
+  await writeFile(
+    indexPath,
+    JSON.stringify(
+      {
+        version: '1.0.0',
+        updated_at: new Date().toISOString(),
+        tasks: nextTasks,
+      } satisfies TaskIndex,
+      null,
+      2,
+    ),
+    'utf8',
+  );
 }
 
 async function readTaskIndex(indexPath: string): Promise<TaskIndex> {
@@ -187,8 +201,10 @@ function formatLocalTimestamp(date: Date): string {
 }
 
 function sanitizePathSegment(value: string): string {
-  return value
-    .replace(/[<>:"/\\|?*\u0000-\u001F]/g, '_')
-    .replace(/\s+/g, '_')
-    .slice(0, 80) || 'document';
+  return (
+    value
+      .replace(/[<>:"/\\|?*\u0000-\u001F]/g, '_')
+      .replace(/\s+/g, '_')
+      .slice(0, 80) || 'document'
+  );
 }

@@ -1,6 +1,6 @@
-import {app} from 'electron';
-import {mkdir} from 'node:fs/promises';
-import {join} from 'node:path';
+import { app } from 'electron';
+import { mkdir } from 'node:fs/promises';
+import { join } from 'node:path';
 
 export type AppDataPaths = {
   userDataDir: string;
@@ -27,11 +27,11 @@ export function getAppDataPaths(): AppDataPaths {
 export async function ensureAppDataDirs(): Promise<AppDataPaths> {
   const paths = getAppDataPaths();
   await Promise.all([
-    mkdir(paths.configDir, {recursive: true}),
-    mkdir(paths.logsDir, {recursive: true}),
-    mkdir(paths.tasksDir, {recursive: true}),
-    mkdir(paths.keysDir, {recursive: true}),
-    mkdir(paths.tempDir, {recursive: true}),
+    mkdir(paths.configDir, { recursive: true }),
+    mkdir(paths.logsDir, { recursive: true }),
+    mkdir(paths.tasksDir, { recursive: true }),
+    mkdir(paths.keysDir, { recursive: true }),
+    mkdir(paths.tempDir, { recursive: true }),
   ]);
   return paths;
 }

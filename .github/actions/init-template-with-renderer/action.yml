@@ -5,9 +5,8 @@ inputs:
     required: false
     default: ''
 
-
 runs:
-  using: "composite"
+  using: 'composite'
   steps:
     - if: ${{ runner.os == 'Linux' }}
       shell: bash

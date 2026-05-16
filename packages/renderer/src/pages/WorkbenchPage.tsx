@@ -1,4 +1,4 @@
-import {useCallback, useEffect, useMemo, useState} from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   Check,
   ChevronDown,
@@ -23,10 +23,10 @@ import {
   type RestoreDocxResult,
   type Settings as AppSettings,
 } from '@app/shared';
-import {Badge, Button, Card, Input, Label, Textarea, cn} from '../components/ui';
-import {getDebugApi} from '../lib/debug-api';
-import {getLocalApi, isLocalApiReady} from '../lib/local-api';
-import {loadRecentTasks, pushRecentTask, type RecentTask} from '../lib/recent-tasks';
+import { Badge, Button, Card, Input, Label, Textarea, cn } from '../components/ui';
+import { getDebugApi } from '../lib/debug-api';
+import { getLocalApi, isLocalApiReady } from '../lib/local-api';
+import { loadRecentTasks, pushRecentTask, type RecentTask } from '../lib/recent-tasks';
 
 type ActiveView = 'home' | 'mask' | 'restore' | 'rules';
 type LastResult = MaskDocxResult | RestoreDocxResult;
@@ -37,11 +37,18 @@ export function WorkbenchPage() {
   const [settingsText, setSettingsText] = useState(JSON.stringify(defaultSettings, null, 2));
   const [logs, setLogs] = useState<AppLogEntry[]>([]);
   const [busy, setBusy] = useState(false);
-  const [notice, setNotice] = useState<{type: 'success' | 'error' | 'info'; text: string} | null>(null);
+  const [notice, setNotice] = useState<{ type: 'success' | 'error' | 'info'; text: string } | null>(
+    null,
+  );
   const [maskResult, setMaskResult] = useState<MaskDocxResult | null>(null);
   const [restoreResult, setRestoreResult] = useState<RestoreDocxResult | null>(null);
-  const [maskForm, setMaskForm] = useState({inputPath: '', outputDir: '', password: ''});
-  const [restoreForm, setRestoreForm] = useState({maskedDocxPath: '', restoreFilePath: '', outputDir: '', password: ''});
+  const [maskForm, setMaskForm] = useState({ inputPath: '', outputDir: '', password: '' });
+  const [restoreForm, setRestoreForm] = useState({
+    maskedDocxPath: '',
+    restoreFilePath: '',
+    outputDir: '',
+    password: '',
+  });
   const [recentTasks, setRecentTasks] = useState<RecentTask[]>(() => loadRecentTasks());
   const [logBarExpanded, setLogBarExpanded] = useState(false);
   const [rulesListOpen, setRulesListOpen] = useState(false);
@@ -49,15 +56,20 @@ export function WorkbenchPage() {
   const [expandedRuleId, setExpandedRuleId] = useState<string | null>(null);
   const [dragOver, setDragOver] = useState(false);
   const [devDebugOpen, setDevDebugOpen] = useState(false);
-  const [devPingResult, setDevPingResult] = useState<{message: string; time: string} | null>(null);
+  const [devPingResult, setDevPingResult] = useState<{ message: string; time: string } | null>(
+    null,
+  );
   const [devFilePath, setDevFilePath] = useState<string | null>(null);
-  const [devMaskResult, setDevMaskResult] = useState<{success: boolean; outputPath: string} | null>(null);
+  const [devMaskResult, setDevMaskResult] = useState<{
+    success: boolean;
+    outputPath: string;
+  } | null>(null);
 
   const enabledRules = useMemo(() => settings.rules.filter((rule) => rule.enabled), [settings]);
   const latestLogs = useMemo(() => logs.slice(-5), [logs]);
 
   const showNotice = useCallback((type: 'success' | 'error' | 'info', text: string) => {
-    setNotice({type, text});
+    setNotice({ type, text });
     window.setTimeout(() => setNotice(null), 4200);
   }, []);
 
@@ -100,28 +112,31 @@ export function WorkbenchPage() {
     pushRecentTask(path);
     setRecentTasks(loadRecentTasks());
     if (target === 'restore') {
-      setRestoreForm((current) => ({...current, maskedDocxPath: path}));
+      setRestoreForm((current) => ({ ...current, maskedDocxPath: path }));
       setActiveView('restore');
       return;
     }
-    setMaskForm((current) => ({...current, inputPath: path}));
+    setMaskForm((current) => ({ ...current, inputPath: path }));
     setMaskResult(null);
     setActiveView('mask');
   }
 
-  const pickDocx = useCallback(async (target: 'mask' | 'restore') => {
-    if (!isLocalApiReady()) {
-      return;
-    }
-    try {
-      const path = await getLocalApi().selectDocx();
-      if (path) {
-        selectDocxFile(path, target);
+  const pickDocx = useCallback(
+    async (target: 'mask' | 'restore') => {
+      if (!isLocalApiReady()) {
+        return;
       }
-    } catch (error) {
-      showNotice('error', formatError(error));
-    }
-  }, [showNotice]);
+      try {
+        const path = await getLocalApi().selectDocx();
+        if (path) {
+          selectDocxFile(path, target);
+        }
+      } catch (error) {
+        showNotice('error', formatError(error));
+      }
+    },
+    [showNotice],
+  );
 
   async function pickRestoreFile() {
     if (!isLocalApiReady()) {
@@ -130,7 +145,7 @@ export function WorkbenchPage() {
     try {
       const path = await getLocalApi().selectRestoreFile();
       if (path) {
-        setRestoreForm((current) => ({...current, restoreFilePath: path}));
+        setRestoreForm((current) => ({ ...current, restoreFilePath: path }));
       }
     } catch (error) {
       showNotice('error', formatError(error));
@@ -147,9 +162,9 @@ export function WorkbenchPage() {
         return;
       }
       if (target === 'mask') {
-        setMaskForm((current) => ({...current, outputDir: path}));
+        setMaskForm((current) => ({ ...current, outputDir: path }));
       } else {
-        setRestoreForm((current) => ({...current, outputDir: path}));
+        setRestoreForm((current) => ({ ...current, outputDir: path }));
       }
     } catch (error) {
       showNotice('error', formatError(error));
@@ -251,9 +266,9 @@ export function WorkbenchPage() {
 
   async function toggleRule(ruleId: string) {
     const nextRules = settings.rules.map((rule) =>
-      rule.id === ruleId ? {...rule, enabled: !rule.enabled} : rule,
+      rule.id === ruleId ? { ...rule, enabled: !rule.enabled } : rule,
     );
-    const next = {...settings, rules: nextRules};
+    const next = { ...settings, rules: nextRules };
     try {
       const saved = await getLocalApi().saveSettings(next);
       setSettings(saved);
@@ -272,7 +287,11 @@ export function WorkbenchPage() {
           <span className="status-sub">本地 · 离线</span>
         </div>
         <div className="status-right">
-          {notice && <span className={cn('status-notice', `status-notice-${notice.type}`)}>{notice.text}</span>}
+          {notice && (
+            <span className={cn('status-notice', `status-notice-${notice.type}`)}>
+              {notice.text}
+            </span>
+          )}
         </div>
       </header>
 
@@ -321,7 +340,7 @@ export function WorkbenchPage() {
               onGoRules={() => setActiveView('rules')}
               onReset={() => {
                 setMaskResult(null);
-                setMaskForm({inputPath: '', outputDir: '', password: ''});
+                setMaskForm({ inputPath: '', outputDir: '', password: '' });
                 setActiveView('home');
               }}
             />
@@ -361,86 +380,100 @@ export function WorkbenchPage() {
         </main>
       </div>
 
-      <DevDebugPanel
-        open={devDebugOpen}
-        pingResult={devPingResult}
-        filePath={devFilePath}
-        maskResult={devMaskResult}
-        onToggle={() => setDevDebugOpen((value) => !value)}
-        onPing={async () => {
-          const api = getDebugApi();
-          if (!api) {
-            console.error('IPC bridge not available');
-            return;
-          }
-          try {
-            const res = await api.ping();
-            console.log(res);
-            setDevPingResult(res);
-          } catch (error) {
-            console.error(error);
-            setDevPingResult(null);
-          }
-        }}
-        onSelectDocx={async () => {
-          const api = getDebugApi();
-          if (!api) {
-            console.error('IPC bridge not available');
-            return;
-          }
-          try {
-            const path = await api.selectDocx();
-            console.log(path);
-            setDevFilePath(path);
-          } catch (error) {
-            console.error(error);
-            setDevFilePath(null);
-          }
-        }}
-        onSelectAndMask={async () => {
-          const api = getDebugApi();
-          if (!api) {
-            console.error('IPC bridge not available');
-            return;
-          }
-          try {
-            const path = await api.selectDocx();
-            if (!path) {
+      {import.meta.env.DEV && (
+        <DevDebugPanel
+          open={devDebugOpen}
+          pingResult={devPingResult}
+          filePath={devFilePath}
+          maskResult={devMaskResult}
+          onToggle={() => setDevDebugOpen((value) => !value)}
+          onPing={async () => {
+            const api = getDebugApi();
+            if (!api) {
+              console.error('IPC bridge not available');
               return;
             }
-            setDevFilePath(path);
-            const result = await api.maskDocx({filePath: path});
-            console.log(result);
-            setDevMaskResult(result);
-          } catch (error) {
-            console.error(error);
-            setDevMaskResult(null);
-          }
-        }}
-      />
+            try {
+              const res = await api.ping();
+              console.log(res);
+              setDevPingResult(res);
+            } catch (error) {
+              console.error(error);
+              setDevPingResult(null);
+            }
+          }}
+          onSelectDocx={async () => {
+            const api = getDebugApi();
+            if (!api) {
+              console.error('IPC bridge not available');
+              return;
+            }
+            try {
+              const path = await api.selectDocx();
+              console.log(path);
+              setDevFilePath(path);
+            } catch (error) {
+              console.error(error);
+              setDevFilePath(null);
+            }
+          }}
+          onSelectAndMask={async () => {
+            const api = getDebugApi();
+            if (!api) {
+              console.error('IPC bridge not available');
+              return;
+            }
+            try {
+              const path = await api.selectDocx();
+              if (!path) {
+                return;
+              }
+              setDevFilePath(path);
+              const result = await api.maskDocx({ filePath: path });
+              console.log(result);
+              setDevMaskResult(result);
+            } catch (error) {
+              console.error(error);
+              setDevMaskResult(null);
+            }
+          }}
+        />
+      )}
 
       <footer className={cn('log-bar', logBarExpanded && 'log-bar-expanded')}>
-        <button type="button" className="log-bar-toggle" onClick={() => setLogBarExpanded((open) => !open)}>
+        <button
+          type="button"
+          className="log-bar-toggle"
+          onClick={() => setLogBarExpanded((open) => !open)}
+        >
           {logBarExpanded ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
           <History size={14} />
           <span>实时日志</span>
           {latestLogs.length > 0 && <Badge variant="secondary">{logs.length}</Badge>}
         </button>
         <div className="log-bar-content">
-          {(logBarExpanded ? logs.slice().reverse() : latestLogs.slice().reverse()).map((entry, index) => (
-            <div className="log-bar-line" key={`${entry.timestamp}-${index}`}>
-              <span className="log-time">{entry.timestamp}</span>
-              <span className={cn('log-level', `log-level-${entry.level.toLowerCase()}`)}>{entry.level}</span>
-              <span className="log-msg">{entry.message}</span>
-            </div>
-          ))}
+          {(logBarExpanded ? logs.slice().reverse() : latestLogs.slice().reverse()).map(
+            (entry, index) => (
+              <div className="log-bar-line" key={`${entry.timestamp}-${index}`}>
+                <span className="log-time">{entry.timestamp}</span>
+                <span className={cn('log-level', `log-level-${entry.level.toLowerCase()}`)}>
+                  {entry.level}
+                </span>
+                <span className="log-msg">{entry.message}</span>
+              </div>
+            ),
+          )}
           {logs.length === 0 && <span className="log-empty">暂无日志</span>}
         </div>
-        <Button type="button" variant="ghost" className="log-refresh" onClick={() => void refreshLogs()}>
+        <Button
+          type="button"
+          variant="ghost"
+          className="log-refresh"
+          onClick={() => void refreshLogs()}
+        >
           <RefreshCw size={14} />
         </Button>
       </footer>
-
     </div>
   );
 }
@@ -456,9 +489,9 @@ function DevDebugPanel({
   onSelectAndMask,
 }: {
   open: boolean;
-  pingResult: {message: string; time: string} | null;
+  pingResult: { message: string; time: string } | null;
   filePath: string | null;
-  maskResult: {success: boolean; outputPath: string} | null;
+  maskResult: { success: boolean; outputPath: string } | null;
   onToggle: () => void;
   onPing: () => void;
   onSelectDocx: () => void;
@@ -473,9 +506,15 @@ function DevDebugPanel({
       {open && (
         <div className="dev-debug-body">
           <div className="dev-debug-actions">
-            <Button type="button" variant="outline" onClick={onPing}>Ping Main</Button>
-            <Button type="button" variant="outline" onClick={onSelectDocx}>选择 Word 文件</Button>
-            <Button type="button" variant="outline" onClick={onSelectAndMask}>选择并脱敏（smoke）</Button>
+            <Button type="button" variant="outline" onClick={onPing}>
+              Ping Main
+            </Button>
+            <Button type="button" variant="outline" onClick={onSelectDocx}>
+              选择 Word 文件
+            </Button>
+            <Button type="button" variant="outline" onClick={onSelectAndMask}>
+              选择并脱敏（smoke）
+            </Button>
           </div>
           <div className="dev-debug-output">
             {pingResult && (
@@ -485,7 +524,9 @@ function DevDebugPanel({
             )}
             {filePath && <p>file: {filePath}</p>}
             {maskResult && <p>output: {maskResult.outputPath}</p>}
-            {!pingResult && !filePath && !maskResult && <p className="dev-debug-empty">暂无调试输出</p>}
+            {!pingResult && !filePath && !maskResult && (
+              <p className="dev-debug-empty">暂无调试输出</p>
+            )}
           </div>
         </div>
       )}
@@ -493,23 +534,52 @@ function DevDebugPanel({
   );
 }
 
-function SidebarNav({activeView, onNavigate}: {activeView: ActiveView; onNavigate: (view: ActiveView) => void}) {
+function SidebarNav({
+  activeView,
+  onNavigate,
+}: {
+  activeView: ActiveView;
+  onNavigate: (view: ActiveView) => void;
+}) {
   return (
     <nav className="sidebar-nav" aria-label="主导航">
       <div className="sidebar-brand">
-        <div className="brand-mark"><FileKey2 size={20} /></div>
+        <div className="brand-mark">
+          <FileKey2 size={20} />
+        </div>
         <div>
           <h1>DocCipher</h1>
           <p>本地安全文档工作台</p>
         </div>
       </div>
       <div className="nav-flow">
-        <NavItem active={activeView === 'home'} icon={<Home size={16} />} label="工作台" onClick={() => onNavigate('home')} />
-        <NavItem active={activeView === 'mask'} icon={<ShieldCheck size={16} />} label="脱敏" onClick={() => onNavigate('mask')} />
-        <NavItem active={activeView === 'restore'} icon={<Undo2 size={16} />} label="还原" onClick={() => onNavigate('restore')} />
+        <NavItem
+          active={activeView === 'home'}
+          icon={<Home size={16} />}
+          label="工作台"
+          onClick={() => onNavigate('home')}
+        />
+        <NavItem
+          active={activeView === 'mask'}
+          icon={<ShieldCheck size={16} />}
+          label="脱敏"
+          onClick={() => onNavigate('mask')}
+        />
+        <NavItem
+          active={activeView === 'restore'}
+          icon={<Undo2 size={16} />}
+          label="还原"
+          onClick={() => onNavigate('restore')}
+        />
       </div>
       <div className="nav-secondary">
-        <NavItem active={activeView === 'rules'} icon={<Settings size={14} />} label="规则" secondary onClick={() => onNavigate('rules')} />
+        <NavItem
+          active={activeView === 'rules'}
+          icon={<Settings size={14} />}
+          label="规则"
+          secondary
+          onClick={() => onNavigate('rules')}
+        />
       </div>
     </nav>
   );
@@ -561,7 +631,10 @@ function HomePanel({
 }) {
   return (
     <div className="panel-stack">
-      <PanelHero title="选择文件开始脱敏" description="拖拽 docx 到下方区域，或点击选择文件。所有处理均在本地完成。" />
+      <PanelHero
+        title="选择文件开始脱敏"
+        description="拖拽 docx 到下方区域，或点击选择文件。所有处理均在本地完成。"
+      />
       <div
         className={cn('drop-zone', dragOver && 'drop-zone-active')}
         onDragEnter={onDragEnter}
@@ -571,7 +644,9 @@ function HomePanel({
       >
         <Upload size={28} />
         <p>拖拽 docx 到这里</p>
-        <Button type="button" onClick={onPick}>选择文件</Button>
+        <Button type="button" onClick={onPick}>
+          选择文件
+        </Button>
       </div>
       {recentTasks.length > 0 && (
         <Card className="recent-card">
@@ -579,7 +654,11 @@ function HomePanel({
           <ul className="recent-list">
             {recentTasks.map((task) => (
               <li key={task.path}>
-                <button type="button" className="recent-item" onClick={() => onOpenRecent(task.path)}>
+                <button
+                  type="button"
+                  className="recent-item"
+                  onClick={() => onOpenRecent(task.path)}
+                >
                   <span>{task.name}</span>
                   <span className="recent-meta">{formatRecentTime(task.timestamp)}</span>
                 </button>
@@ -613,13 +692,15 @@ function MaskPanel({
   busy: boolean;
   dragOver: boolean;
   enabledRules: MaskingRule[];
-  form: {inputPath: string; outputDir: string; password: string};
+  form: { inputPath: string; outputDir: string; password: string };
   result: MaskDocxResult | null;
   onDragEnter: () => void;
   onDragLeave: () => void;
   onDragOver: (event: React.DragEvent) => void;
   onDrop: (event: React.DragEvent) => void;
-  onFormChange: React.Dispatch<React.SetStateAction<{inputPath: string; outputDir: string; password: string}>>;
+  onFormChange: React.Dispatch<
+    React.SetStateAction<{ inputPath: string; outputDir: string; password: string }>
+  >;
   onOpenFolder: (path: string) => void;
   onPickDocx: () => void;
   onPickOutput: () => void;
@@ -646,7 +727,9 @@ function MaskPanel({
         >
           <Upload size={22} />
           <p>拖拽 docx 到这里</p>
-          <Button type="button" variant="outline" onClick={onPickDocx}>选择文件</Button>
+          <Button type="button" variant="outline" onClick={onPickDocx}>
+            选择文件
+          </Button>
         </div>
       )}
 
@@ -657,9 +740,13 @@ function MaskPanel({
               {busy ? <Loader2 className="spin" size={16} /> : <ShieldCheck size={16} />}
               开始脱敏
             </Button>
-            <Button type="button" variant="outline" onClick={onGoRules}>配置规则</Button>
+            <Button type="button" variant="outline" onClick={onGoRules}>
+              配置规则
+            </Button>
             {result && (
-              <Button type="button" variant="ghost" onClick={onReset}>重新选择</Button>
+              <Button type="button" variant="ghost" onClick={onReset}>
+                重新选择
+              </Button>
             )}
           </div>
 
@@ -684,7 +771,9 @@ function MaskPanel({
             <Input
               type="password"
               value={form.password}
-              onChange={(event) => onFormChange((current) => ({...current, password: event.target.value}))}
+              onChange={(event) =>
+                onFormChange((current) => ({ ...current, password: event.target.value }))
+              }
               placeholder="用于加密 restore.enc"
             />
           </Field>
@@ -692,7 +781,12 @@ function MaskPanel({
           <Field label="输出目录（可选）">
             <div className="path-field">
               <Input value={form.outputDir} readOnly placeholder="默认：原文件旁的 output 目录" />
-              <Button type="button" variant="outline" onClick={onPickOutput} aria-label="选择输出目录">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={onPickOutput}
+                aria-label="选择输出目录"
+              >
                 <FolderOpen size={16} />
               </Button>
             </div>
@@ -704,15 +798,27 @@ function MaskPanel({
         <Card className="result-panel">
           <h3>已生成</h3>
           <ul className="result-files">
-            <ResultFileRow path={result.maskedDocxPath} onOpen={() => onOpenFolder(result.maskedDocxPath)} />
-            <ResultFileRow path={result.restoreFilePath} onOpen={() => onOpenFolder(result.restoreFilePath)} />
+            <ResultFileRow
+              path={result.maskedDocxPath}
+              onOpen={() => onOpenFolder(result.maskedDocxPath)}
+            />
+            <ResultFileRow
+              path={result.restoreFilePath}
+              onOpen={() => onOpenFolder(result.restoreFilePath)}
+            />
           </ul>
           <p className="result-stats">共替换 {result.itemCount} 处敏感信息</p>
           <div className="result-actions">
-            <Button type="button" variant="outline" onClick={() => onOpenFolder(result.maskedDocxPath)}>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => onOpenFolder(result.maskedDocxPath)}
+            >
               <FolderOpen size={16} /> 打开目录
             </Button>
-            <Button type="button" variant="ghost" onClick={onReset}>重新脱敏</Button>
+            <Button type="button" variant="ghost" onClick={onReset}>
+              重新脱敏
+            </Button>
           </div>
         </Card>
       )}
@@ -732,9 +838,16 @@ function RestorePanel({
   onRun,
 }: {
   busy: boolean;
-  form: {maskedDocxPath: string; restoreFilePath: string; outputDir: string; password: string};
+  form: { maskedDocxPath: string; restoreFilePath: string; outputDir: string; password: string };
   result: RestoreDocxResult | null;
-  onFormChange: React.Dispatch<React.SetStateAction<{maskedDocxPath: string; restoreFilePath: string; outputDir: string; password: string}>>;
+  onFormChange: React.Dispatch<
+    React.SetStateAction<{
+      maskedDocxPath: string;
+      restoreFilePath: string;
+      outputDir: string;
+      password: string;
+    }>
+  >;
   onOpenFolder: (path: string) => void;
   onPickDocx: () => void;
   onPickRestore: () => void;
@@ -743,16 +856,30 @@ function RestorePanel({
 }) {
   return (
     <div className="panel-stack">
-      <PanelHero title="还原文档" description="使用脱敏 docx 与 restore.enc，在本地还原 Word 文档。" />
+      <PanelHero
+        title="还原文档"
+        description="使用脱敏 docx 与 restore.enc，在本地还原 Word 文档。"
+      />
       <Card className="task-card">
         <PathField label="脱敏 docx" value={form.maskedDocxPath} onPick={onPickDocx} />
-        <PathField label="还原文件 restore.enc" value={form.restoreFilePath} onPick={onPickRestore} />
-        <PathField label="输出目录（可选）" value={form.outputDir} onPick={onPickOutput} placeholder="默认输出到脱敏文件旁" />
+        <PathField
+          label="还原文件 restore.enc"
+          value={form.restoreFilePath}
+          onPick={onPickRestore}
+        />
+        <PathField
+          label="输出目录（可选）"
+          value={form.outputDir}
+          onPick={onPickOutput}
+          placeholder="默认输出到脱敏文件旁"
+        />
         <Field label="还原密码">
           <Input
             type="password"
             value={form.password}
-            onChange={(event) => onFormChange((current) => ({...current, password: event.target.value}))}
+            onChange={(event) =>
+              onFormChange((current) => ({ ...current, password: event.target.value }))
+            }
           />
         </Field>
         <Button type="button" onClick={onRun} disabled={busy}>
@@ -764,10 +891,17 @@ function RestorePanel({
         <Card className="result-panel">
           <h3>已生成</h3>
           <ul className="result-files">
-            <ResultFileRow path={result.restoredDocxPath} onOpen={() => onOpenFolder(result.restoredDocxPath)} />
+            <ResultFileRow
+              path={result.restoredDocxPath}
+              onOpen={() => onOpenFolder(result.restoredDocxPath)}
+            />
           </ul>
           <p className="result-stats">共还原 {result.itemCount} 处</p>
-          <Button type="button" variant="outline" onClick={() => onOpenFolder(result.restoredDocxPath)}>
+          <Button
+            type="button"
+            variant="outline"
+            onClick={() => onOpenFolder(result.restoredDocxPath)}
+          >
             <FolderOpen size={16} /> 打开目录
           </Button>
         </Card>
@@ -810,9 +944,18 @@ function RulesPanel({
       <PanelHero title="脱敏规则" description="面向业务的规则名称，高级正则仅在展开后可见。" />
       <Card className="rules-summary-card">
         <div className="rules-stats">
-          <div><strong>{enabledCount}</strong><span>已启用</span></div>
-          <div><strong>{settings.rules.length}</strong><span>规则总数</span></div>
-          <div><strong>{settings.version}</strong><span>版本</span></div>
+          <div>
+            <strong>{enabledCount}</strong>
+            <span>已启用</span>
+          </div>
+          <div>
+            <strong>{settings.rules.length}</strong>
+            <span>规则总数</span>
+          </div>
+          <div>
+            <strong>{settings.version}</strong>
+            <span>版本</span>
+          </div>
         </div>
       </Card>
 
@@ -826,8 +969,16 @@ function RulesPanel({
             {settings.rules.map((rule) => (
               <li key={rule.id} className="rules-list-item">
                 <div className="rule-row">
-                  <button type="button" className="rule-expand" onClick={() => onExpandRule(expandedRuleId === rule.id ? null : rule.id)}>
-                    {expandedRuleId === rule.id ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
+                  <button
+                    type="button"
+                    className="rule-expand"
+                    onClick={() => onExpandRule(expandedRuleId === rule.id ? null : rule.id)}
+                  >
+                    {expandedRuleId === rule.id ? (
+                      <ChevronDown size={14} />
+                    ) : (
+                      <ChevronRight size={14} />
+                    )}
                   </button>
                   <div className="rule-info">
                     <strong>{rule.name}</strong>
@@ -855,10 +1006,19 @@ function RulesPanel({
         </button>
         {advancedJsonOpen && (
           <>
-            <Textarea value={settingsText} onChange={(event) => onSettingsTextChange(event.target.value)} rows={16} spellCheck={false} />
+            <Textarea
+              value={settingsText}
+              onChange={(event) => onSettingsTextChange(event.target.value)}
+              rows={16}
+              spellCheck={false}
+            />
             <div className="actions">
-              <Button type="button" variant="outline" onClick={onReload}><RefreshCw size={16} /> 重载</Button>
-              <Button type="button" onClick={onSave}><Save size={16} /> 保存</Button>
+              <Button type="button" variant="outline" onClick={onReload}>
+                <RefreshCw size={16} /> 重载
+              </Button>
+              <Button type="button" onClick={onSave}>
+                <Save size={16} /> 保存
+              </Button>
             </div>
           </>
         )}
@@ -867,7 +1027,7 @@ function RulesPanel({
   );
 }
 
-function RuleDetail({rule}: {rule: MaskingRule}) {
+function RuleDetail({ rule }: { rule: MaskingRule }) {
   if (rule.type === 'regex') {
     return (
       <div className="rule-detail">
@@ -898,7 +1058,7 @@ function RuleDetail({rule}: {rule: MaskingRule}) {
   );
 }
 
-function PanelHero({title, description}: {title: string; description: string}) {
+function PanelHero({ title, description }: { title: string; description: string }) {
   return (
     <header className="panel-hero">
       <h2>{title}</h2>
@@ -907,7 +1067,17 @@ function PanelHero({title, description}: {title: string; description: string}) {
   );
 }
 
-function PathField({label, value, onPick, placeholder}: {label: string; value: string; onPick: () => void; placeholder?: string}) {
+function PathField({
+  label,
+  value,
+  onPick,
+  placeholder,
+}: {
+  label: string;
+  value: string;
+  onPick: () => void;
+  placeholder?: string;
+}) {
   return (
     <Field label={label}>
       <div className="path-field">
@@ -920,7 +1090,7 @@ function PathField({label, value, onPick, placeholder}: {label: string; value: s
   );
 }
 
-function Field({label, children}: {label: string; children: React.ReactNode}) {
+function Field({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <div className="field">
       <Label>{label}</Label>
@@ -929,25 +1099,28 @@ function Field({label, children}: {label: string; children: React.ReactNode}) {
   );
 }
 
-function ResultFile({name}: {name: string}) {
+function ResultFile({ name }: { name: string }) {
   return (
-    <div className="result-file-mini">
+    <div className="result-file-mini" title={name}>
       <Check size={12} />
       <span>{name}</span>
     </div>
   );
 }
 
-function ResultFileRow({path, onOpen}: {path: string; onOpen: () => void}) {
+function ResultFileRow({ path, onOpen }: { path: string; onOpen: () => void }) {
   return (
     <li>
       <Check size={14} className="result-check" />
-      <span className="result-name">{fileName(path)}</span>
-      <button type="button" className="result-open" onClick={onOpen}>打开</button>
+      <span className="result-name" title={path}>
+        {fileName(path)}
+      </span>
+      <button type="button" className="result-open" onClick={onOpen}>
+        打开
+      </button>
     </li>
   );
 }
-
 
 function fileName(path: string): string {
   return path.split(/[/\\]/).pop() ?? path;
@@ -959,7 +1132,12 @@ function formatError(error: unknown): string {
 
 function formatRecentTime(iso: string): string {
   try {
-    return new Date(iso).toLocaleString('zh-CN', {month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit'});
+    return new Date(iso).toLocaleString('zh-CN', {
+      month: 'short',
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+    });
   } catch {
     return '';
   }
@@ -976,6 +1154,6 @@ function ruleTypeLabel(rule: MaskingRule): string {
 }
 
 function getDroppedPath(file: File): string | null {
-  const electronFile = file as File & {path?: string};
+  const electronFile = file as File & { path?: string };
   return electronFile.path ?? null;
 }

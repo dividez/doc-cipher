@@ -23,7 +23,7 @@ export function loadRecentTasks(): RecentTask[] {
 export function pushRecentTask(path: string): RecentTask[] {
   const name = path.split(/[/\\]/).pop() ?? path;
   const next: RecentTask[] = [
-    {path, name, timestamp: new Date().toISOString()},
+    { path, name, timestamp: new Date().toISOString() },
     ...loadRecentTasks().filter((task) => task.path !== path),
   ].slice(0, MAX_TASKS);
   localStorage.setItem(STORAGE_KEY, JSON.stringify(next));

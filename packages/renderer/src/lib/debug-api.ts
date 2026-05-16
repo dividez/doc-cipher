@@ -1,7 +1,7 @@
 export type DebugApi = {
-  ping: () => Promise<{message: string; time: string}>;
+  ping: () => Promise<{ message: string; time: string }>;
   selectDocx: () => Promise<string | null>;
-  maskDocx: (payload: {filePath: string}) => Promise<{success: boolean; outputPath: string}>;
+  maskDocx: (payload: { filePath: string }) => Promise<{ success: boolean; outputPath: string }>;
 };
 
 export function getDebugApi(): DebugApi | null {

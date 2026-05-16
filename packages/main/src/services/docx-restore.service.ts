@@ -1,13 +1,13 @@
 import AdmZip from 'adm-zip';
-import {DOMParser, XMLSerializer} from '@xmldom/xmldom';
-import type {Document as XmlDocument, Element as XmlElement} from '@xmldom/xmldom';
-import {mkdir, readFile, writeFile} from 'node:fs/promises';
-import {basename, extname, join} from 'node:path';
-import type {RestoreDocxPayload, RestoreDocxResult} from '@app/shared';
-import {decryptMapping, sha256} from './crypto.service.js';
-import {shouldProcessPart} from './docx-parts.js';
-import {logger} from './log.service.js';
-import {createTaskContext, writeTaskLog, writeTaskManifest} from './task.service.js';
+import { DOMParser, XMLSerializer } from '@xmldom/xmldom';
+import type { Document as XmlDocument, Element as XmlElement } from '@xmldom/xmldom';
+import { mkdir, readFile, writeFile } from 'node:fs/promises';
+import { basename, extname, join } from 'node:path';
+import type { RestoreDocxPayload, RestoreDocxResult } from '@app/shared';
+import { decryptMapping, sha256 } from './crypto.service.js';
+import { shouldProcessPart } from './docx-parts.js';
+import { logger } from './log.service.js';
+import { createTaskContext, writeTaskLog, writeTaskManifest } from './task.service.js';
 
 type Replacement = {
   token: string;
@@ -34,7 +34,10 @@ export async function restoreDocx(payload: RestoreDocxPayload): Promise<RestoreD
     outputRoot: payload.outputDir,
   });
   const outputDir = task.taskDir;
-  const baseName = basename(payload.maskedDocxPath, extname(payload.maskedDocxPath)).replace(/\.masked$/, '');
+  const baseName = basename(payload.maskedDocxPath, extname(payload.maskedDocxPath)).replace(
+    /\.masked$/,
+    '',
+  );
   const restoredDocxPath = join(outputDir, `${baseName}.restored.docx`);
 
   try {
@@ -49,9 +52,11 @@ export async function restoreDocx(payload: RestoreDocxPayload): Promise<RestoreD
     }
 
     const zip = new AdmZip(maskedBuffer);
-    const tokenVault = mapping.tokens ?? Object.fromEntries(mapping.items.map((item) => [item.token, item.original]));
+    const tokenVault =
+      mapping.tokens ??
+      Object.fromEntries(mapping.items.map((item) => [item.token, item.original]));
     const replacements = Object.entries(tokenVault)
-      .map(([token, original]) => ({token, original}))
+      .map(([token, original]) => ({ token, original }))
       .sort((a, b) => b.token.length - a.token.length);
 
     for (const entry of zip.getEntries()) {
@@ -65,7 +70,7 @@ export async function restoreDocx(payload: RestoreDocxPayload): Promise<RestoreD
       zip.updateFile(entry.entryName, Buffer.from(updatedXml, 'utf8'));
     }
 
-    await mkdir(outputDir, {recursive: true});
+    await mkdir(outputDir, { recursive: true });
     const restoredBuffer = zip.toBuffer();
     const restoredFingerprint = sha256(restoredBuffer);
     await writeFile(restoredDocxPath, restoredBuffer);
@@ -78,7 +83,9 @@ export async function restoreDocx(payload: RestoreDocxPayload): Promise<RestoreD
       restored_sha256: restoredFingerprint,
       item_count: mapping.items.length,
     });
-    logger().info(`Restored ${basename(payload.maskedDocxPath)} -> ${restoredDocxPath}; ${mapping.items.length} items`);
+    logger().info(
+      `Restored ${basename(payload.maskedDocxPath)} -> ${restoredDocxPath}; ${mapping.items.length} items`,
+    );
 
     return {
       taskId: task.taskId,
@@ -164,7 +171,12 @@ function findTokenMatches(text: string, replacements: Replacement[]): RestoreMat
   return matches.sort((a, b) => a.start - b.start);
 }
 
-function rewriteTextNodes(document: XmlDocument, textNodes: TextNodeRef[], fullText: string, matches: RestoreMatch[]): void {
+function rewriteTextNodes(
+  document: XmlDocument,
+  textNodes: TextNodeRef[],
+  fullText: string,
+  matches: RestoreMatch[],
+): void {
   const starts = new Map(matches.map((match) => [match.start, match]));
 
   for (const node of textNodes) {
@@ -180,7 +192,9 @@ function rewriteTextNodes(document: XmlDocument, textNodes: TextNodeRef[], fullT
         continue;
       }
 
-      const containingMatch = matches.find((match) => match.start < position && position < match.end);
+      const containingMatch = matches.find(
+        (match) => match.start < position && position < match.end,
+      );
       if (containingMatch) {
         position = Math.min(containingMatch.end, node.end);
         continue;

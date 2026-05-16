@@ -1,14 +1,26 @@
 import AdmZip from 'adm-zip';
-import {DOMParser, XMLSerializer} from '@xmldom/xmldom';
-import type {Document as XmlDocument, Element as XmlElement} from '@xmldom/xmldom';
-import {mkdir, readFile, writeFile} from 'node:fs/promises';
-import {basename, extname, join} from 'node:path';
-import type {MappingItem, MaskDocxPayload, MaskDocxResult, MaskingRule, RestoreMapping, Settings} from '@app/shared';
-import {settingsSchema} from '@app/shared';
-import {encryptMapping, sha256} from './crypto.service.js';
-import {shouldProcessPart} from './docx-parts.js';
-import {logger} from './log.service.js';
-import {createTaskContext, summarizeRules, writeTaskLog, writeTaskManifest} from './task.service.js';
+import { DOMParser, XMLSerializer } from '@xmldom/xmldom';
+import type { Document as XmlDocument, Element as XmlElement } from '@xmldom/xmldom';
+import { mkdir, readFile, writeFile } from 'node:fs/promises';
+import { basename, extname, join } from 'node:path';
+import type {
+  MappingItem,
+  MaskDocxPayload,
+  MaskDocxResult,
+  MaskingRule,
+  RestoreMapping,
+  Settings,
+} from '@app/shared';
+import { settingsSchema } from '@app/shared';
+import { encryptMapping, sha256 } from './crypto.service.js';
+import { shouldProcessPart } from './docx-parts.js';
+import { logger } from './log.service.js';
+import {
+  createTaskContext,
+  summarizeRules,
+  writeTaskLog,
+  writeTaskManifest,
+} from './task.service.js';
 
 type TextNodeRef = {
   element: XmlElement;
@@ -56,24 +68,26 @@ export async function maskDocx(payload: MaskDocxPayload): Promise<MaskDocxResult
 
       await writeTaskLog(task, `Parse ${entry.entryName}`);
       const xml = entry.getData().toString('utf8');
-      const {updatedXml, matches} = maskXmlPart(xml, entry.entryName, settings, counters);
+      const { updatedXml, matches } = maskXmlPart(xml, entry.entryName, settings, counters);
 
       if (matches.length > 0) {
         zip.updateFile(entry.entryName, Buffer.from(updatedXml, 'utf8'));
-        items.push(...matches.map((match, index) => ({
-          token: match.token,
-          original: match.original,
-          rule_id: match.ruleId,
-          location: {
-            part: entry.entryName,
-            index: index + 1,
-          },
-        })));
+        items.push(
+          ...matches.map((match, index) => ({
+            token: match.token,
+            original: match.original,
+            rule_id: match.ruleId,
+            location: {
+              part: entry.entryName,
+              index: index + 1,
+            },
+          })),
+        );
         await writeTaskLog(task, `${entry.entryName} matched ${matches.length} items`);
       }
     }
 
-    await mkdir(outputDir, {recursive: true});
+    await mkdir(outputDir, { recursive: true });
     const maskedBuffer = zip.toBuffer();
     const maskedFingerprint = sha256(maskedBuffer);
     await writeFile(maskedDocxPath, maskedBuffer);
@@ -137,7 +151,7 @@ function maskXmlPart(
   partName: string,
   settings: Settings,
   counters: Map<string, number>,
-): {updatedXml: string; matches: Match[]} {
+): { updatedXml: string; matches: Match[] } {
   const parser = new DOMParser({
     onError: (level, message) => {
       if (level === 'fatalError') {
@@ -263,7 +277,9 @@ function findMatches(text: string, rules: MaskingRule[], counters: Map<string, n
 function selectMatches(matches: Match[]): Match[] {
   const selected: Match[] = [];
 
-  for (const match of matches.sort((a, b) => a.start - b.start || b.end - b.start - (a.end - a.start) || a.order - b.order)) {
+  for (const match of matches.sort(
+    (a, b) => a.start - b.start || b.end - b.start - (a.end - a.start) || a.order - b.order,
+  )) {
     if (selected.some((item) => rangesOverlap(item, match))) {
       continue;
     }
@@ -284,7 +300,12 @@ function createToken(ruleId: string, count: number, rules: MaskingRule[]): strin
   return (rule?.placeholder || `[${ruleId.toUpperCase()}_{n}]`).replaceAll('{n}', n);
 }
 
-function rewriteTextNodes(document: XmlDocument, textNodes: TextNodeRef[], fullText: string, matches: Match[]): void {
+function rewriteTextNodes(
+  document: XmlDocument,
+  textNodes: TextNodeRef[],
+  fullText: string,
+  matches: Match[],
+): void {
   const starts = new Map(matches.map((match) => [match.start, match]));
 
   for (const node of textNodes) {
@@ -300,7 +321,9 @@ function rewriteTextNodes(document: XmlDocument, textNodes: TextNodeRef[], fullT
         continue;
       }
 
-      const containingMatch = matches.find((match) => match.start < position && position < match.end);
+      const containingMatch = matches.find(
+        (match) => match.start < position && position < match.end,
+      );
       if (containingMatch) {
         position = Math.min(containingMatch.end, node.end);
         continue;
