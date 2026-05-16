@@ -1,0 +1,31 @@
+{
+  "name": "@app/main",
+  "type": "module",
+  "scripts": {
+    "build": "vite build",
+    "typecheck": "tsc --noEmit"
+  },
+  "exports": {
+    ".": {
+      "types": "./src/index.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "dependencies": {
+    "@app/preload": "workspace:*",
+    "@app/renderer": "workspace:*",
+    "@app/shared": "workspace:*",
+    "@xmldom/xmldom": "latest",
+    "adm-zip": "latest",
+    "electron-log": "latest",
+    "electron-updater": "latest",
+    "zod": "latest"
+  },
+  "devDependencies": {
+    "@app/electron-versions": "workspace:*",
+    "@types/adm-zip": "latest",
+    "electron-devtools-installer": "latest",
+    "typescript": "latest",
+    "vite": "latest"
+  }
+}
