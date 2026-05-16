@@ -45,7 +45,7 @@ jobs:
           version: latest
 
       - name: Install dependencies
-        run: pnpm install --no-frozen-lockfile
+        run: pnpm install --no-frozen-lockfile --config.dangerously-allow-all-builds=true
 
       - name: Typecheck
         run: pnpm typecheck
