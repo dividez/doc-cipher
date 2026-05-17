@@ -2,7 +2,7 @@ import log from 'electron-log/main';
 import { mkdir, readFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import type { AppLogEntry } from '@app/shared';
-import { getAppDataPaths } from './app-paths.service.js';
+import { getAppStoragePaths } from './app-paths.service.js';
 
 let configured = false;
 
@@ -11,7 +11,7 @@ export function configureLogger(): void {
     return;
   }
 
-  const logDir = getAppDataPaths().logsDir;
+  const logDir = getAppStoragePaths().logsDir;
   log.transports.file.resolvePathFn = () => join(logDir, 'app.log');
   log.transports.file.level = 'info';
   log.transports.console.level = import.meta.env.DEV ? 'debug' : 'warn';
@@ -25,7 +25,7 @@ export function logger() {
 
 export async function readAppLogs(): Promise<AppLogEntry[]> {
   configureLogger();
-  const logDir = getAppDataPaths().logsDir;
+  const logDir = getAppStoragePaths().logsDir;
   const logPath = join(logDir, 'app.log');
   await mkdir(logDir, { recursive: true });
 

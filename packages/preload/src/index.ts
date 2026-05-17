@@ -19,6 +19,19 @@ function invoke<T>(channel: string, payload?: unknown): Promise<T> {
   return ipcRenderer.invoke(channel, payload) as Promise<T>;
 }
 
+export type AppStoragePathsInfo = {
+  appDataDir: string;
+  appConfigDir: string;
+  userDataDir: string;
+  profilesDir: string;
+  tasksDir: string;
+  logsDir: string;
+  keysDir: string;
+  tempDir: string;
+  defaultUserDataDir: string;
+  isCustomUserDataDir: boolean;
+};
+
 export const localApi = {
   ping: () => invoke<{ message: string; time: string }>('app:ping'),
   selectDocx: () => invoke<string | null>('file:select-docx'),
@@ -42,4 +55,21 @@ export const localApi = {
   previewDocxMatches: (payload: DocxMatchPreviewPayload) =>
     invoke<DocxMatchPreviewResult>('docx:preview-matches', payload),
   listTaskHistory: (limit?: number) => invoke<TaskHistoryEntry[]>('tasks:list-history', limit),
+  getStoragePaths: () => invoke<AppStoragePathsInfo>('app:get-storage-paths'),
+  openAppDataDir: () => invoke<void>('app:open-app-data-dir'),
+  openUserDataDir: () => invoke<void>('app:open-user-data-dir'),
+  pickUserDataDir: () =>
+    invoke<{ path: string; needsRestart: boolean } | null>('app:pick-user-data-dir'),
+  resetUserDataDir: () =>
+    invoke<{ path: string; needsRestart: boolean }>('app:reset-user-data-dir'),
+  relaunchApp: () => invoke<void>('app:relaunch'),
+  onNavigate: (callback: (view: string) => void) => {
+    const listener = (_event: unknown, view: string) => {
+      callback(view);
+    };
+    ipcRenderer.on('app:navigate', listener);
+    return () => {
+      ipcRenderer.removeListener('app:navigate', listener);
+    };
+  },
 };

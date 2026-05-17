@@ -13,6 +13,19 @@ import type {
   TaskHistoryEntry,
 } from '@app/shared';
 
+export type AppStoragePathsInfo = {
+  appDataDir: string;
+  appConfigDir: string;
+  userDataDir: string;
+  profilesDir: string;
+  tasksDir: string;
+  logsDir: string;
+  keysDir: string;
+  tempDir: string;
+  defaultUserDataDir: string;
+  isCustomUserDataDir: boolean;
+};
+
 export type LocalApi = {
   ping: () => Promise<{ message: string; time: string }>;
   selectDocx: () => Promise<string | null>;
@@ -39,6 +52,13 @@ export type LocalApi = {
   showItemInFolder: (filePath: string) => Promise<void>;
   previewDocxMatches: (payload: DocxMatchPreviewPayload) => Promise<DocxMatchPreviewResult>;
   listTaskHistory: (limit?: number) => Promise<TaskHistoryEntry[]>;
+  getStoragePaths: () => Promise<AppStoragePathsInfo>;
+  openAppDataDir: () => Promise<void>;
+  openUserDataDir: () => Promise<void>;
+  pickUserDataDir: () => Promise<{ path: string; needsRestart: boolean } | null>;
+  resetUserDataDir: () => Promise<{ path: string; needsRestart: boolean }>;
+  relaunchApp: () => Promise<void>;
+  onNavigate: (callback: (view: string) => void) => () => void;
 };
 
 declare global {

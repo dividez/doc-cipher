@@ -1,8 +1,15 @@
 import type { AppModule } from '../AppModule.js';
 import type { ModuleContext } from '../ModuleContext.js';
-import { copyFile, readFile, writeFile } from 'node:fs/promises';
+import { access, constants } from 'node:fs/promises';
+import { copyFile, mkdir, readFile, writeFile } from 'node:fs/promises';
 import { basename, dirname, extname, join } from 'node:path';
 import { dialog, ipcMain, shell } from 'electron';
+import { getAppStoragePathsInfo } from '../services/app-paths.service.js';
+import {
+  clearBootstrapUserDataDir,
+  getDefaultUserDataDir,
+  writeBootstrapUserDataDir,
+} from '../services/data-dir-bootstrap.js';
 import {
   settingsSchema,
   type DocxMatchPreviewPayload,
@@ -36,6 +43,51 @@ class IpcModule implements AppModule {
         message: 'pong',
         time: new Date().toISOString(),
       };
+    });
+
+    ipcMain.handle('app:get-storage-paths', async () => getAppStoragePathsInfo());
+
+    ipcMain.handle('app:open-app-data-dir', async () => {
+      const { appDataDir } = getAppStoragePathsInfo();
+      await shell.openPath(appDataDir);
+    });
+
+    ipcMain.handle('app:open-user-data-dir', async () => {
+      const { userDataDir } = getAppStoragePathsInfo();
+      await shell.openPath(userDataDir);
+    });
+
+    ipcMain.handle('app:pick-user-data-dir', async () => {
+      const result = await dialog.showOpenDialog({
+        title: '选择用户数据目录',
+        properties: ['openDirectory', 'createDirectory'],
+      });
+      if (result.canceled || !result.filePaths[0]) {
+        return null;
+      }
+
+      const pickedDir = result.filePaths[0];
+      await access(pickedDir, constants.W_OK);
+      await mkdir(pickedDir, { recursive: true });
+      writeBootstrapUserDataDir(pickedDir);
+
+      return {
+        path: pickedDir,
+        needsRestart: true,
+      };
+    });
+
+    ipcMain.handle('app:reset-user-data-dir', async () => {
+      clearBootstrapUserDataDir();
+      return {
+        path: getDefaultUserDataDir(),
+        needsRestart: true,
+      };
+    });
+
+    ipcMain.handle('app:relaunch', async () => {
+      app.relaunch();
+      app.exit(0);
     });
 
     ipcMain.handle('docx:smoke-mask', async (_, payload: { filePath: string }) => {

@@ -1,11 +1,13 @@
 import { ChevronDown, ChevronRight, FolderOpen, RefreshCw, Save } from 'lucide-react';
 import type { Settings as AppSettings, AppSettingsConfig, MaskingRule } from '@app/shared';
+import type { AppStoragePathsInfo } from '../../lib/local-api.js';
 import { Button, Card, Input, Label, Textarea, cn } from '../../components/ui.js';
 import { Field, PanelHero, RuleDetail } from './workbench-ui.js';
 import { ruleTypeLabel } from './workbench-utils.js';
 
 export function AppSettingsPanel({
   settings,
+  storagePaths,
   enabledCount,
   rulesListOpen,
   advancedJsonOpen,
@@ -17,11 +19,16 @@ export function AppSettingsPanel({
   onToggleRule,
   onUpdateAppConfig,
   onPickDefaultOutputDir,
+  onOpenAppDataDir,
+  onOpenUserDataDir,
+  onPickUserDataDir,
+  onResetUserDataDir,
   onSettingsTextChange,
   onReload,
   onSave,
 }: {
   settings: AppSettings;
+  storagePaths: AppStoragePathsInfo | null;
   enabledCount: number;
   rulesListOpen: boolean;
   advancedJsonOpen: boolean;
@@ -33,6 +40,10 @@ export function AppSettingsPanel({
   onToggleRule: (id: string) => void;
   onUpdateAppConfig: (patch: Partial<AppSettingsConfig>) => void;
   onPickDefaultOutputDir: () => void;
+  onOpenAppDataDir: () => void;
+  onOpenUserDataDir: () => void;
+  onPickUserDataDir: () => void;
+  onResetUserDataDir: () => void;
   onSettingsTextChange: (text: string) => void;
   onReload: () => void;
   onSave: () => void;
@@ -41,10 +52,75 @@ export function AppSettingsPanel({
 
   return (
     <div className="panel-stack">
-      <PanelHero
-        title="应用设置"
-        description="控制全局行为。脱敏方案中的规则组合请在「方案」中维护。"
-      />
+      <PanelHero title="应用设置" description="调整通用选项；具体脱敏规则请在「方案」中设置。" />
+
+      <Card className="app-settings-card">
+        <div className="section-head">
+          <h3>数据存放位置</h3>
+        </div>
+        <ul className="app-settings-list">
+          <li className="app-settings-row app-settings-row-stack">
+            <div className="app-settings-copy">
+              <strong>应用设置</strong>
+              <span>位置固定，不能改</span>
+            </div>
+            <Field label="位置">
+              <div className="path-field">
+                <Input value={storagePaths?.appDataDir ?? ''} readOnly spellCheck={false} />
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={onOpenAppDataDir}
+                  disabled={!storagePaths}
+                  aria-label="在 Finder 中查看应用设置文件夹"
+                >
+                  <FolderOpen size={16} />
+                </Button>
+              </div>
+            </Field>
+          </li>
+          <li className="app-settings-row app-settings-row-stack">
+            <div className="app-settings-copy">
+              <strong>方案与记录</strong>
+              <span>可以改到其他文件夹，改完要重启</span>
+            </div>
+            <Field label="位置">
+              <div className="path-field">
+                <Input value={storagePaths?.userDataDir ?? ''} readOnly spellCheck={false} />
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={onOpenUserDataDir}
+                  disabled={!storagePaths}
+                  aria-label="在 Finder 中查看方案与记录文件夹"
+                >
+                  <FolderOpen size={16} />
+                </Button>
+              </div>
+            </Field>
+            <div className="profile-actions profile-actions-wrap">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={onPickUserDataDir}
+                disabled={!storagePaths}
+              >
+                更换位置…
+              </Button>
+              {storagePaths?.isCustomUserDataDir ? (
+                <Button
+                  type="button"
+                  variant="ghost"
+                  onClick={onResetUserDataDir}
+                  disabled={!storagePaths}
+                >
+                  恢复默认
+                </Button>
+              ) : null}
+            </div>
+          </li>
+        </ul>
+      </Card>
 
       <Card className="app-settings-card">
         <div className="section-head">
@@ -55,7 +131,7 @@ export function AppSettingsPanel({
           <li className="app-settings-row">
             <div className="app-settings-copy">
               <strong>正则规则</strong>
-              <span>脱敏与命中预估时，是否应用模板中的手机号、身份证等正则规则</span>
+              <span>识别手机号、身份证号等常见格式</span>
             </div>
             <button
               type="button"
@@ -68,7 +144,7 @@ export function AppSettingsPanel({
           <li className="app-settings-row">
             <div className="app-settings-copy">
               <strong>系统关键词</strong>
-              <span>是否应用默认模板中 id 为 keywords 的通用关键词规则（如示例人名、公司名）</span>
+              <span>识别模板里的示例关键词（如常见人名、公司名）</span>
             </div>
             <button
               type="button"

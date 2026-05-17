@@ -25,7 +25,7 @@ import {
 import { AppIcon } from '../components/AppIcon.js';
 import { Badge, Button, Card, cn } from '../components/ui.js';
 import { getDebugApi } from '../lib/debug-api.js';
-import { getLocalApi, isLocalApiReady } from '../lib/local-api.js';
+import { getLocalApi, isLocalApiReady, type AppStoragePathsInfo } from '../lib/local-api.js';
 import { loadRecentTasks, pushRecentTask, type RecentTask } from '../lib/recent-tasks.js';
 import { AppSettingsPanel } from './workbench/AppSettingsPanel.js';
 import { HomePanel } from './workbench/HomePanel.js';
@@ -94,6 +94,7 @@ export function WorkbenchPage() {
     success: boolean;
     outputPath: string;
   } | null>(null);
+  const [storagePaths, setStoragePaths] = useState<AppStoragePathsInfo | null>(null);
 
   const enabledRules = useMemo(
     () => filterExecutableRules(settings, templateSettings.app),
@@ -141,6 +142,18 @@ export function WorkbenchPage() {
       showNotice('error', formatError(error));
     }
   }, [activeProfileId, showNotice]);
+
+  const refreshStoragePaths = useCallback(async () => {
+    if (!isLocalApiReady()) {
+      return;
+    }
+    try {
+      const paths = await getLocalApi().getStoragePaths();
+      setStoragePaths(paths);
+    } catch (error) {
+      showNotice('error', formatError(error));
+    }
+  }, [showNotice]);
 
   const refreshMaskProfiles = useCallback(async () => {
     if (!isLocalApiReady()) {
@@ -262,12 +275,29 @@ export function WorkbenchPage() {
       return;
     }
     void refreshSettings();
+    void refreshStoragePaths();
     void refreshMaskProfiles();
     void refreshLogs();
     void refreshTaskHistory({ silent: true });
     const timer = window.setInterval(() => void refreshLogs(), 5000);
     return () => window.clearInterval(timer);
-  }, [refreshLogs, refreshMaskProfiles, refreshSettings, refreshTaskHistory]);
+  }, [refreshLogs, refreshMaskProfiles, refreshSettings, refreshStoragePaths, refreshTaskHistory]);
+
+  useEffect(() => {
+    if (!isLocalApiReady()) {
+      return;
+    }
+    const api = getLocalApi();
+    if (!api.onNavigate) {
+      return;
+    }
+    return api.onNavigate((view) => {
+      if (view === 'settings') {
+        setActiveView('settings');
+        void refreshStoragePaths();
+      }
+    });
+  }, [refreshStoragePaths]);
 
   useEffect(() => {
     if (selectedProfile) {
@@ -691,6 +721,72 @@ export function WorkbenchPage() {
     }
   }
 
+  async function openAppDataDir() {
+    if (!isLocalApiReady()) {
+      return;
+    }
+    try {
+      await getLocalApi().openAppDataDir();
+    } catch (error) {
+      showNotice('error', formatError(error));
+    }
+  }
+
+  async function openUserDataDir() {
+    if (!isLocalApiReady()) {
+      return;
+    }
+    try {
+      await getLocalApi().openUserDataDir();
+    } catch (error) {
+      showNotice('error', formatError(error));
+    }
+  }
+
+  function confirmUserDataDirChange(): boolean {
+    return window.confirm(
+      '换文件夹后要重启。原来的方案和记录不会跟过来，上面的应用设置不受影响。继续吗？',
+    );
+  }
+
+  async function pickUserDataDir() {
+    if (!isLocalApiReady()) {
+      return;
+    }
+    if (!confirmUserDataDirChange()) {
+      return;
+    }
+    try {
+      const result = await getLocalApi().pickUserDataDir();
+      if (!result?.needsRestart) {
+        return;
+      }
+      showNotice('info', '已更换保存位置，正在重启…');
+      await getLocalApi().relaunchApp();
+    } catch (error) {
+      showNotice('error', formatError(error));
+    }
+  }
+
+  async function resetUserDataDir() {
+    if (!isLocalApiReady()) {
+      return;
+    }
+    if (!confirmUserDataDirChange()) {
+      return;
+    }
+    try {
+      const result = await getLocalApi().resetUserDataDir();
+      if (!result.needsRestart) {
+        return;
+      }
+      showNotice('info', '已恢复默认保存位置，正在重启…');
+      await getLocalApi().relaunchApp();
+    } catch (error) {
+      showNotice('error', formatError(error));
+    }
+  }
+
   async function toggleRule(ruleId: string) {
     const nextRules = templateSettings.rules.map((rule) =>
       rule.id === ruleId ? { ...rule, enabled: !rule.enabled } : rule,
@@ -837,6 +933,7 @@ export function WorkbenchPage() {
           {activeView === 'settings' && (
             <AppSettingsPanel
               settings={templateSettings}
+              storagePaths={storagePaths}
               enabledCount={templateEnabledRules.length}
               rulesListOpen={rulesListOpen}
               advancedJsonOpen={advancedJsonOpen}
@@ -848,6 +945,10 @@ export function WorkbenchPage() {
               onToggleRule={(id) => void toggleRule(id)}
               onUpdateAppConfig={updateAppConfig}
               onPickDefaultOutputDir={() => void pickDefaultOutputDir()}
+              onOpenAppDataDir={() => void openAppDataDir()}
+              onOpenUserDataDir={() => void openUserDataDir()}
+              onPickUserDataDir={() => void pickUserDataDir()}
+              onResetUserDataDir={() => void resetUserDataDir()}
               onSettingsTextChange={setSettingsText}
               onReload={() => void refreshSettings()}
               onSave={() => void saveSettingsJson()}

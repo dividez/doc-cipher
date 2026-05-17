@@ -31,10 +31,10 @@ class WindowManager implements AppModule {
   async createWindow(): Promise<BrowserWindow> {
     const icon = resolveAppIconPath();
     const browserWindow = new BrowserWindow({
-      width: 1280,
-      height: 820,
-      minWidth: 1080,
-      minHeight: 720,
+      width: 1600,
+      height: 1000,
+      minWidth: 1360,
+      minHeight: 860,
       show: false, // Use the 'ready-to-show' event to show the instantiated BrowserWindow.
       title: 'DocCipher',
       ...(icon ? { icon } : {}),

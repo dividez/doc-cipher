@@ -1227,6 +1227,11 @@ textarea {
   border-bottom: 0;
 }
 
+.app-settings-row-stack {
+  flex-direction: column;
+  align-items: stretch;
+}
+
 .app-settings-copy {
   display: grid;
   gap: 4px;

@@ -2,7 +2,7 @@ import { mkdir, readdir, readFile, rm, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { maskProfileSchema, settingsSchema, type MaskProfile, type Settings } from '@app/shared';
 import { createProfileId } from '../lib/profile-id.js';
-import { getAppDataPaths } from './app-paths.service.js';
+import { getAppStoragePaths } from './app-paths.service.js';
 
 type SaveProfilePayload = {
   id?: string;
@@ -11,7 +11,7 @@ type SaveProfilePayload = {
 };
 
 function profilesDir(): string {
-  return join(getAppDataPaths().configDir, 'mask-profiles');
+  return getAppStoragePaths().profilesDir;
 }
 
 function profilePath(id: string): string {
