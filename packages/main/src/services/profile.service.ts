@@ -1,6 +1,7 @@
 import { mkdir, readdir, readFile, rm, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { maskProfileSchema, settingsSchema, type MaskProfile, type Settings } from '@app/shared';
+import { createProfileId } from '../lib/profile-id.js';
 import { getAppDataPaths } from './app-paths.service.js';
 
 type SaveProfilePayload = {
@@ -14,7 +15,7 @@ function profilesDir(): string {
 }
 
 function profilePath(id: string): string {
-  return join(profilesDir(), `${sanitizeProfileId(id)}.json`);
+  return join(profilesDir(), `${id}.json`);
 }
 
 export async function listMaskProfiles(): Promise<MaskProfile[]> {
@@ -42,7 +43,7 @@ export async function listMaskProfiles(): Promise<MaskProfile[]> {
 
 export async function saveMaskProfile(payload: SaveProfilePayload): Promise<MaskProfile> {
   const now = new Date().toISOString();
-  const id = payload.id || createProfileId(payload.name);
+  const id = payload.id ?? createProfileId();
   const existing = await readMaskProfile(id);
   const profile = maskProfileSchema.parse({
     id,
@@ -80,20 +81,4 @@ async function readMaskProfile(id: string): Promise<MaskProfile | null> {
   } catch {
     return null;
   }
-}
-
-function createProfileId(name: string): string {
-  const base = sanitizeProfileId(name) || 'profile';
-  return `${base}-${Date.now().toString(36)}`;
-}
-
-function sanitizeProfileId(value: string): string {
-  return (
-    value
-      .trim()
-      .toLowerCase()
-      .replace(/[^a-z0-9\u4e00-\u9fa5_-]+/g, '-')
-      .replace(/^-+|-+$/g, '')
-      .slice(0, 80) || 'profile'
-  );
 }

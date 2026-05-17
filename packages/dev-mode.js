@@ -1,3 +1,4 @@
+import { execSync } from 'node:child_process';
 import { build, createServer } from 'vite';
 import path from 'path';
 
@@ -45,6 +46,8 @@ const rendererWatchServerProvider = {
  * 4. Start building all other packages.
  * For each of them, we add a plugin provider so that each package can implement its own hot update mechanism.
  */
+
+execSync('pnpm gen:build-info', { stdio: 'inherit', cwd: path.resolve('.') });
 
 /** @type {string[]} */
 const packagesToStart = ['packages/shared', 'packages/preload', 'packages/main'];
