@@ -12,11 +12,32 @@ export async function readSettings(): Promise<Settings> {
 
   try {
     const content = await readFile(path, 'utf8');
-    return settingsSchema.parse(JSON.parse(content));
+    return normalizeSettings(JSON.parse(content));
   } catch {
     await saveSettings(defaultSettings);
     return defaultSettings;
   }
+}
+
+function normalizeSettings(raw: unknown): Settings {
+  const source = typeof raw === 'object' && raw !== null ? (raw as Record<string, unknown>) : {};
+  return settingsSchema.parse({
+    ...defaultSettings,
+    ...source,
+    app: {
+      ...defaultSettings.app,
+      ...(typeof source.app === 'object' && source.app !== null
+        ? (source.app as Record<string, unknown>)
+        : {}),
+    },
+    masking: {
+      ...defaultSettings.masking,
+      ...(typeof source.masking === 'object' && source.masking !== null
+        ? (source.masking as Record<string, unknown>)
+        : {}),
+    },
+    rules: Array.isArray(source.rules) ? source.rules : defaultSettings.rules,
+  });
 }
 
 export async function saveSettings(settings: Settings): Promise<Settings> {

@@ -2,6 +2,7 @@ import type { AppModule } from '../AppModule.js';
 import { ModuleContext } from '../ModuleContext.js';
 import { BrowserWindow } from 'electron';
 import type { AppInitConfig } from '../AppInitConfig.js';
+import { resolveAppIconPath } from '../lib/app-icon.js';
 
 class WindowManager implements AppModule {
   readonly #preload: { path: string };
@@ -28,6 +29,7 @@ class WindowManager implements AppModule {
   }
 
   async createWindow(): Promise<BrowserWindow> {
+    const icon = resolveAppIconPath();
     const browserWindow = new BrowserWindow({
       width: 1280,
       height: 820,
@@ -35,6 +37,7 @@ class WindowManager implements AppModule {
       minHeight: 720,
       show: false, // Use the 'ready-to-show' event to show the instantiated BrowserWindow.
       title: 'DocCipher',
+      ...(icon ? { icon } : {}),
       webPreferences: {
         nodeIntegration: false,
         contextIsolation: true,

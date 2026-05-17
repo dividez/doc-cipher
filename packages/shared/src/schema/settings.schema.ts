@@ -33,8 +33,15 @@ export const maskingRuleSchema = z.discriminatedUnion('type', [
   manualRuleSchema,
 ]);
 
+export const appSettingsSchema = z.object({
+  enable_regex_rules: z.boolean().default(true),
+  enable_system_keywords: z.boolean().default(true),
+  default_output_dir: z.string().default(''),
+});
+
 export const settingsSchema = z.object({
   version: z.string().min(1),
+  app: appSettingsSchema,
   masking: z.object({
     placeholder_style: z.enum(['typed_counter']).default('typed_counter'),
     default_mask_char: z.string().min(1).default('*'),
@@ -46,10 +53,16 @@ export type RegexRule = z.infer<typeof regexRuleSchema>;
 export type KeywordRule = z.infer<typeof keywordRuleSchema>;
 export type ManualRule = z.infer<typeof manualRuleSchema>;
 export type MaskingRule = z.infer<typeof maskingRuleSchema>;
+export type AppSettingsConfig = z.infer<typeof appSettingsSchema>;
 export type Settings = z.infer<typeof settingsSchema>;
 
 export const defaultSettings: Settings = {
   version: '1.0.0',
+  app: {
+    enable_regex_rules: true,
+    enable_system_keywords: true,
+    default_output_dir: '',
+  },
   masking: {
     placeholder_style: 'typed_counter',
     default_mask_char: '*',

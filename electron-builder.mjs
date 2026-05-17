@@ -3,10 +3,14 @@ import mapWorkspaces from '@npmcli/map-workspaces';
 import { join } from 'node:path';
 import { pathToFileURL } from 'node:url';
 
+/** 主图标：1024×1024 PNG，打包时由 electron-builder 生成各平台图标 */
+const appIcon = 'buildResources/icon.png';
+
 export default /** @type import('electron-builder').Configuration */
 ({
   appId: 'com.doccipher.app',
   productName: pkg.productName ?? 'DocCipher',
+  icon: appIcon,
   directories: {
     output: 'dist',
     buildResources: 'buildResources',
@@ -14,6 +18,7 @@ export default /** @type import('electron-builder').Configuration */
   generateUpdatesFilesForAllChannels: true,
   asar: true,
   mac: {
+    icon: appIcon,
     category: 'public.app-category.productivity',
     target: ['dmg', 'zip'],
     identity: null,
@@ -21,6 +26,7 @@ export default /** @type import('electron-builder').Configuration */
     gatekeeperAssess: false,
   },
   win: {
+    icon: appIcon,
     target: ['nsis', 'zip'],
   },
   nsis: {

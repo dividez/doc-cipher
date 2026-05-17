@@ -1,10 +1,16 @@
 import type {
   AppLogEntry,
+  DocxMatchPreviewPayload,
+  DocxMatchPreviewResult,
+  DocxPreviewPayload,
+  DocxPreviewResult,
+  MaskProfile,
   MaskDocxPayload,
   MaskDocxResult,
   RestoreDocxPayload,
   RestoreDocxResult,
   Settings,
+  TaskHistoryEntry,
 } from '@app/shared';
 
 export type LocalApi = {
@@ -15,12 +21,24 @@ export type LocalApi = {
   smokeMaskDocx: (payload: {
     filePath: string;
   }) => Promise<{ success: boolean; outputPath: string }>;
+  previewDocx: (payload: DocxPreviewPayload) => Promise<DocxPreviewResult>;
   maskDocx: (payload: MaskDocxPayload) => Promise<MaskDocxResult>;
   restoreDocx: (payload: RestoreDocxPayload) => Promise<RestoreDocxResult>;
   readSettings: () => Promise<Settings>;
   saveSettings: (payload: Settings) => Promise<Settings>;
+  listMaskProfiles: () => Promise<MaskProfile[]>;
+  saveMaskProfile: (payload: {
+    id?: string;
+    name: string;
+    settings: Settings;
+  }) => Promise<MaskProfile>;
+  deleteMaskProfile: (id: string) => Promise<void>;
+  exportMaskProfile: (id: string) => Promise<string | null>;
+  importMaskProfile: () => Promise<MaskProfile | null>;
   readLogs: () => Promise<AppLogEntry[]>;
   showItemInFolder: (filePath: string) => Promise<void>;
+  previewDocxMatches: (payload: DocxMatchPreviewPayload) => Promise<DocxMatchPreviewResult>;
+  listTaskHistory: (limit?: number) => Promise<TaskHistoryEntry[]>;
 };
 
 declare global {
@@ -34,6 +52,10 @@ export function isLocalApiReady(): boolean {
   return (
     !!api &&
     typeof api.selectDocx === 'function' &&
+    typeof api.previewDocx === 'function' &&
+    typeof api.listMaskProfiles === 'function' &&
+    typeof api.previewDocxMatches === 'function' &&
+    typeof api.listTaskHistory === 'function' &&
     typeof api.readLogs === 'function' &&
     typeof api.readSettings === 'function'
   );

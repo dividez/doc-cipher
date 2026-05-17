@@ -4,6 +4,7 @@ import type { Document as XmlDocument, Element as XmlElement } from '@xmldom/xml
 import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import { basename, extname, join } from 'node:path';
 import type {
+  DocxManualSelection,
   MappingItem,
   MaskDocxPayload,
   MaskDocxResult,
@@ -11,7 +12,7 @@ import type {
   RestoreMapping,
   Settings,
 } from '@app/shared';
-import { settingsSchema } from '@app/shared';
+import { expandManualSegments, settingsSchema } from '@app/shared';
 import { encryptMapping, sha256 } from './crypto.service.js';
 import { shouldProcessPart } from './docx-parts.js';
 import { logger } from './log.service.js';
@@ -60,6 +61,7 @@ export async function maskDocx(payload: MaskDocxPayload): Promise<MaskDocxResult
     const zip = new AdmZip(inputPath);
     const counters = new Map<string, number>();
     const items: MappingItem[] = [];
+    const manualSelections = payload.manualSelections ?? [];
 
     for (const entry of zip.getEntries()) {
       if (!shouldProcessPart(entry.entryName)) {
@@ -68,7 +70,13 @@ export async function maskDocx(payload: MaskDocxPayload): Promise<MaskDocxResult
 
       await writeTaskLog(task, `Parse ${entry.entryName}`);
       const xml = entry.getData().toString('utf8');
-      const { updatedXml, matches } = maskXmlPart(xml, entry.entryName, settings, counters);
+      const { updatedXml, matches } = maskXmlPart(
+        xml,
+        entry.entryName,
+        settings,
+        counters,
+        manualSelections,
+      );
 
       if (matches.length > 0) {
         zip.updateFile(entry.entryName, Buffer.from(updatedXml, 'utf8'));
@@ -146,11 +154,32 @@ export async function maskDocx(payload: MaskDocxPayload): Promise<MaskDocxResult
   }
 }
 
+export function localManualSelectionsForParagraph(
+  manualSelections: DocxManualSelection[],
+  partName: string,
+  blockIndex: number,
+  paragraphText: string,
+): DocxManualSelection[] {
+  return manualSelections.flatMap((sel) =>
+    expandManualSegments(sel)
+      .filter((s) => s.partName === partName && s.blockIndex === blockIndex)
+      .map((s) => ({
+        ...sel,
+        partName: s.partName,
+        blockIndex: s.blockIndex,
+        start: s.start,
+        end: s.end,
+        text: paragraphText.slice(s.start, s.end),
+      })),
+  );
+}
+
 function maskXmlPart(
   xml: string,
   partName: string,
   settings: Settings,
   counters: Map<string, number>,
+  manualSelections: DocxManualSelection[],
 ): { updatedXml: string; matches: Match[] } {
   const parser = new DOMParser({
     onError: (level, message) => {
@@ -164,7 +193,7 @@ function maskXmlPart(
   const paragraphs = Array.from(document.getElementsByTagName('w:p'));
   const allMatches: Match[] = [];
 
-  for (const paragraph of paragraphs) {
+  for (const [blockIndex, paragraph] of paragraphs.entries()) {
     const textNodes = collectTextNodes(paragraph);
     const paragraphText = textNodes.map((node) => node.text).join('');
 
@@ -172,13 +201,28 @@ function maskXmlPart(
       continue;
     }
 
-    const selected = selectMatches(findMatches(paragraphText, settings.rules, counters));
+    const locals = localManualSelectionsForParagraph(
+      manualSelections,
+      partName,
+      blockIndex,
+      paragraphText,
+    );
+    const selected = selectMatches(findMatches(paragraphText, settings, locals));
     if (selected.length === 0) {
       continue;
     }
 
-    rewriteTextNodes(document, textNodes, paragraphText, selected);
-    allMatches.push(...selected);
+    const tokenized = selected.map((match) => {
+      const count = (counters.get(match.ruleId) ?? 0) + 1;
+      counters.set(match.ruleId, count);
+      return {
+        ...match,
+        token: createToken(match.ruleId, count, settings.rules),
+      };
+    });
+
+    rewriteTextNodes(document, textNodes, paragraphText, tokenized);
+    allMatches.push(...tokenized);
   }
 
   return {
@@ -204,9 +248,32 @@ function collectTextNodes(paragraph: XmlElement): TextNodeRef[] {
   });
 }
 
-function findMatches(text: string, rules: MaskingRule[], counters: Map<string, number>): Match[] {
+export function findMatches(
+  text: string,
+  settings: Settings,
+  manualSelections: DocxManualSelection[],
+): PendingMatch[] {
   const pending: PendingMatch[] = [];
   let order = 0;
+  const rules = settings.rules;
+
+  for (const selection of manualSelections) {
+    if (selection.start < 0 || selection.end > text.length || selection.start >= selection.end) {
+      continue;
+    }
+    const original = text.slice(selection.start, selection.end);
+    if (original !== selection.text) {
+      continue;
+    }
+
+    pending.push({
+      start: selection.start,
+      end: selection.end,
+      original,
+      ruleId: 'manual_selection',
+      order: order++,
+    });
+  }
 
   for (const rule of rules) {
     if (!rule.enabled) {
@@ -214,6 +281,9 @@ function findMatches(text: string, rules: MaskingRule[], counters: Map<string, n
     }
 
     if (rule.type === 'regex') {
+      if (!settings.app.enable_regex_rules) {
+        continue;
+      }
       const regex = new RegExp(rule.pattern, 'gu');
       for (const match of text.matchAll(regex)) {
         const value = match[0];
@@ -232,6 +302,9 @@ function findMatches(text: string, rules: MaskingRule[], counters: Map<string, n
     }
 
     if (rule.type === 'keyword') {
+      if (rule.id === 'keywords' && !settings.app.enable_system_keywords) {
+        continue;
+      }
       for (const keyword of rule.keywords) {
         let index = text.indexOf(keyword);
         while (index !== -1) {
@@ -264,18 +337,11 @@ function findMatches(text: string, rules: MaskingRule[], counters: Map<string, n
     }
   }
 
-  return pending.map((match) => {
-    const count = (counters.get(match.ruleId) ?? 0) + 1;
-    counters.set(match.ruleId, count);
-    return {
-      ...match,
-      token: createToken(match.ruleId, count, rules),
-    };
-  });
+  return pending;
 }
 
-function selectMatches(matches: Match[]): Match[] {
-  const selected: Match[] = [];
+export function selectMatches(matches: PendingMatch[]): PendingMatch[] {
+  const selected: PendingMatch[] = [];
 
   for (const match of matches.sort(
     (a, b) => a.start - b.start || b.end - b.start - (a.end - a.start) || a.order - b.order,
@@ -290,14 +356,15 @@ function selectMatches(matches: Match[]): Match[] {
   return selected.sort((a, b) => a.start - b.start);
 }
 
-function rangesOverlap(a: Match, b: Match): boolean {
+function rangesOverlap(a: PendingMatch, b: PendingMatch): boolean {
   return a.start < b.end && b.start < a.end;
 }
 
 function createToken(ruleId: string, count: number, rules: MaskingRule[]): string {
   const rule = rules.find((item) => item.id === ruleId);
   const n = String(count).padStart(6, '0');
-  return (rule?.placeholder || `[${ruleId.toUpperCase()}_{n}]`).replaceAll('{n}', n);
+  const fallback = ruleId === 'manual_selection' ? '[MANUAL_{n}]' : `[${ruleId.toUpperCase()}_{n}]`;
+  return (rule?.placeholder || fallback).replaceAll('{n}', n);
 }
 
 function rewriteTextNodes(

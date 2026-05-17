@@ -1,7 +1,7 @@
 import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import { appendFile } from 'node:fs/promises';
 import { basename, dirname, extname, join } from 'node:path';
-import type { MappingItem, MaskingRule } from '@app/shared';
+import type { MappingItem, MaskingRule, TaskHistoryEntry } from '@app/shared';
 import { ensureAppDataDirs } from './app-paths.service.js';
 
 export type TaskKind = 'mask' | 'restore';
@@ -168,6 +168,13 @@ async function updateTaskIndex(task: TaskContext, manifest: TaskManifest): Promi
     ),
     'utf8',
   );
+}
+
+export async function listTaskHistory(limit = 120): Promise<TaskHistoryEntry[]> {
+  const { tasksDir } = await ensureAppDataDirs();
+  const indexPath = join(tasksDir, 'task-index.json');
+  const index = await readTaskIndex(indexPath);
+  return index.tasks.slice(0, Math.max(1, limit));
 }
 
 async function readTaskIndex(indexPath: string): Promise<TaskIndex> {

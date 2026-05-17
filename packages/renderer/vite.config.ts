@@ -1,9 +1,14 @@
+import { copyFileSync, mkdirSync } from 'node:fs';
+import { dirname } from 'node:path';
+import { fileURLToPath, URL } from 'node:url';
 import { defineConfig, type Plugin } from 'vite';
 import react from '@vitejs/plugin-react';
-import { fileURLToPath, URL } from 'node:url';
+
+const appIconSource = fileURLToPath(new URL('../../buildResources/icon.png', import.meta.url));
+const appIconPublic = fileURLToPath(new URL('./public/icon.png', import.meta.url));
 
 export default defineConfig({
-  plugins: [react(), contentSecurityPolicy()],
+  plugins: [copyAppIcon(), react(), contentSecurityPolicy()],
   resolve: {
     alias: {
       '@app/shared': fileURLToPath(new URL('../shared/src/index.ts', import.meta.url)),
@@ -13,6 +18,23 @@ export default defineConfig({
     strictPort: false,
   },
 });
+
+function copyAppIcon(): Plugin {
+  return {
+    name: 'doccipher-copy-app-icon',
+    buildStart() {
+      syncAppIcon();
+    },
+    configureServer() {
+      syncAppIcon();
+    },
+  };
+}
+
+function syncAppIcon(): void {
+  mkdirSync(dirname(appIconPublic), { recursive: true });
+  copyFileSync(appIconSource, appIconPublic);
+}
 
 function contentSecurityPolicy(): Plugin {
   return {
