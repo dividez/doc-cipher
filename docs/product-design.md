@@ -8,7 +8,7 @@ DocCipher 是一个完全离线的 Word `docx` 脱敏与还原桌面客户端。
 
 ```txt
 选择 docx -> 预览并确认敏感内容 -> 执行脱敏 -> 生成 masked docx + restore.enc
-masked docx + restore.enc -> 本地还原
+masked docx + restore.enc -> 本地部分还原 + restore-report.json
 ```
 
 核心价值：
@@ -91,6 +91,8 @@ masked docx + restore.enc -> 本地还原
 
 还原
 ├── masked docx + restore.enc + 密码
+├── 精确 token 部分还原
+├── 输出 restored.docx + restore-report.json
 └── 成功后清空表单（保留输出目录）
 
 方案管理
@@ -113,14 +115,35 @@ masked docx + restore.enc -> 本地还原
 6. 输入还原密码，Main OOXML 脱敏，输出 masked docx、restore.enc、manifest、日志。
 7. 脱敏成功后自动切换预览为 **masked.docx**。
 
+## 还原主流程
+
+1. 用户选择当前待还原 docx、`restore.enc`，并输入还原密码。
+2. Main 解密 `restore.enc`。密码错误或映射结构非法时直接失败。
+3. Main 计算当前 docx SHA-256。若与映射中的 `masked_doc_fingerprint` 不一致，说明文档可能被用户编辑；继续执行部分还原，并在日志和报告中标记。
+4. Main 遍历 OOXML 文本 part，按段落拼接 `<w:t>` 内容，只替换完整且精确命中 token vault 的 token。
+5. 被删除、改坏或不完整的 token 跳过；不做模糊猜测。
+6. 同一合法 token 被复制多次时，所有出现位置都还原为同一个原文。
+7. 输出 `*.restored.docx`、`restore-report.json`、manifest、日志。
+
+`restore-report.json` 展示：
+
+- 原始 token 总数
+- 成功还原 token 数
+- 实际替换次数
+- 未找到 token 数
+- 未知 token 数
+- 每个 token 的 `restored` / `missing` / `unknown` 状态
+
+报告不写入原文，避免形成新的敏感数据文件。
+
 ## Renderer / Main 分工
 
-| 能力        | Renderer                    | Main                                |
-| ----------- | --------------------------- | ----------------------------------- |
-| 版式预览    | docx-preview 渲染           | `docx:read-file` 读二进制           |
-| 划词        | `getSelection().toString()` | —                                   |
-| 脱敏 / 还原 | —                           | OOXML 替换、写 masked / restore.enc |
-| 命中预估    | 弹窗展示                    | `docx:preview-matches` 段落级扫描   |
+| 能力        | Renderer                    | Main                                         |
+| ----------- | --------------------------- | -------------------------------------------- |
+| 版式预览    | docx-preview 渲染           | `docx:read-file` 读二进制                    |
+| 划词        | `getSelection().toString()` | —                                            |
+| 脱敏 / 还原 | 展示结果与报告摘要          | OOXML 替换、写 masked / restore.enc / report |
+| 命中预估    | 弹窗展示                    | `docx:preview-matches` 段落级扫描            |
 
 原则：预览不写 docx；脱敏不依赖预览 DOM。
 

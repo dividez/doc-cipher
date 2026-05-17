@@ -35,7 +35,7 @@ export function RestorePanel({
     <div className="panel-stack">
       <PanelHero
         title="还原文档"
-        description="使用脱敏 docx 与 restore.enc，在本地还原 Word 文档。"
+        description="使用脱敏 docx 与 restore.enc，在本地按完整 token 执行部分还原。"
       />
       <Card className="task-card">
         <PathField label="脱敏 docx" value={form.maskedDocxPath} onPick={onPickDocx} />
@@ -72,8 +72,19 @@ export function RestorePanel({
               path={result.restoredDocxPath}
               onOpen={() => onOpenFolder(result.restoredDocxPath)}
             />
+            <ResultFileRow
+              path={result.reportPath}
+              onOpen={() => onOpenFolder(result.reportPath)}
+            />
           </ul>
-          <p className="result-stats">共还原 {result.itemCount} 处</p>
+          <p className="result-stats">
+            成功还原 {result.restoredTokens} / {result.totalTokens} 个 token，共替换{' '}
+            {result.restoredOccurrences} 处
+          </p>
+          <p className="result-stats">
+            未找到 {result.missingTokens} 个，未知 token {result.unknownTokens} 个
+            {result.fingerprintMatch ? '' : '，当前 docx 已被编辑'}
+          </p>
           <Button
             type="button"
             variant="outline"

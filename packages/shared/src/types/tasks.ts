@@ -58,14 +58,44 @@ export type RestoreDocxPayload = {
   password: string;
 };
 
+export type RestoreDocxReportItem = {
+  token: string;
+  status: 'restored' | 'missing' | 'unknown';
+  occurrences: number;
+};
+
+export type RestoreDocxReport = {
+  version: '1.0.0';
+  mode: 'partial_restore';
+  fingerprint_match: boolean;
+  expected_masked_sha256: string;
+  current_docx_sha256: string;
+  restored_sha256: string;
+  total_tokens: number;
+  restored_tokens: number;
+  restored_occurrences: number;
+  missing_tokens: number;
+  unknown_tokens: number;
+  unknown_occurrences: number;
+  items: RestoreDocxReportItem[];
+};
+
 export type RestoreDocxResult = {
   taskId: string;
   taskDir: string;
   restoredDocxPath: string;
+  reportPath: string;
   manifestPath: string;
   taskLogPath: string;
   maskedSha256: string;
   restoredFingerprint: string;
+  fingerprintMatch: boolean;
+  totalTokens: number;
+  restoredTokens: number;
+  restoredOccurrences: number;
+  missingTokens: number;
+  unknownTokens: number;
+  unknownOccurrences: number;
   itemCount: number;
 };
 

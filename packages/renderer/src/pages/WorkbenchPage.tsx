@@ -651,7 +651,10 @@ export function WorkbenchPage() {
         outputDir: current.outputDir,
         password: '',
       }));
-      showNotice('success', '还原完成');
+      showNotice(
+        'success',
+        `还原完成：${result.restoredTokens}/${result.totalTokens} 个 token，${result.restoredOccurrences} 处`,
+      );
       await refreshTaskHistory({ silent: true });
       await refreshLogs();
     } catch (error) {
