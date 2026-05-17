@@ -105,32 +105,32 @@ masked docx + restore.enc -> 本地还原
 
 ## 脱敏主流程
 
-1. 用户选择 docx，应用加载文本预览。
+1. 用户选择 docx，Renderer 通过 `docx:read-file` 加载二进制，**docx-preview** 只读版式预览。
 2. 选择脱敏方案（或临时方案）；规则摘要区分正则、系统词、方案词。
-3. 预览中划词加入本次手动标注；可选保存进方案关键词。
-4. 应用 silent 刷新命中预估，左侧显示规则命中高亮（不自动弹窗）。
+3. 预览中划词采集文本，加入「本次手动词」列表（不记段落位置）；可选保存进方案关键词。
+4. Main 端 `previewDocxMatches` silent 刷新命中预估（不自动弹窗）。
 5. 用户点击「命中预估」可刷新并打开弹窗查看分组统计与样例。
-6. 输入还原密码，执行脱敏，输出 masked docx、restore.enc、manifest、日志。
+6. 输入还原密码，Main OOXML 脱敏，输出 masked docx、restore.enc、manifest、日志。
+7. 脱敏成功后自动切换预览为 **masked.docx**。
+
+## Renderer / Main 分工
+
+| 能力        | Renderer                    | Main                                |
+| ----------- | --------------------------- | ----------------------------------- |
+| 版式预览    | docx-preview 渲染           | `docx:read-file` 读二进制           |
+| 划词        | `getSelection().toString()` | —                                   |
+| 脱敏 / 还原 | —                           | OOXML 替换、写 masked / restore.enc |
+| 命中预估    | 弹窗展示                    | `docx:preview-matches` 段落级扫描   |
+
+原则：预览不写 docx；脱敏不依赖预览 DOM。
 
 ## 命中预览（脱敏前）
 
 - IPC：`previewDocxMatches`，不修改源文件。
 - 返回段落级 `hits[]`（含 `kind`：regex / system_keyword / profile_keyword / manual）。
-- 左侧预览：`docx-rule-hit` 高亮；系统词与方案词可用不同底色。
-- 详情：**居中弹窗**，按类型分组，展示未命中规则、样例与「在预览中定位」。
-- 切换方案或变更规则/手动项后 debounce 自动 silent 刷新。
-
-## 预览内搜索
-
-- 工具栏搜索条：输入、上一条/下一条、计数、关闭。
-- `Ctrl+F` / `Cmd+F` 聚焦；`Enter` / `Shift+Enter` 跳转；`Esc` 关闭。
-- 样式：`docx-search-hit` / `docx-search-current`，与手动、规则高亮区分。
-
-## 结构标签
-
-预览块仅在**非正文区域**或**表格内**显示结构芯片（页眉、页脚、脚注、尾注、批注、表格内）。
-
-纯正文段落**不显示「正文」标签**。
+- v1 **不在** docx-preview DOM 上叠加命中高亮；详情见居中弹窗。
+- 手动词为全文 `indexOf` 子串匹配，与关键词规则一致。
+- 切换方案或变更规则/手动词后 debounce 自动 silent 刷新。
 
 ## 关键词：系统 vs 方案
 

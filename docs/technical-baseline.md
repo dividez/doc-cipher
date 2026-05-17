@@ -69,7 +69,19 @@ IPC 白名单包括文件选择、设置读写、脱敏、还原和日志读取�
 - PDF
 - Office Add-in
 - 宏、OLE、嵌入对象处理
-- 复杂预览和原生 Word 选区
+- 预览 DOM 上叠加命中高亮
+- 原生 Word 选区集成
+
+## 预览架构（Renderer / Main）
+
+```txt
+Renderer: docx-preview 只读版式预览 + 划词采集手动词
+Main:     docx:read-file → 二进制；docx:mask → OOXML 脱敏；docx:preview-matches → 命中扫描
+```
+
+- IPC `docx:read-file`：校验 `.docx` 存在，返回 base64，不解析内容。
+- 划词：`window.getSelection().toString()` → `manualKeywords[]`，脱敏时全文 `indexOf`。
+- 已移除 UI 路径上的 `docx:preview`（段落文本抽取预览）。
 
 ## OOXML 处理策略
 

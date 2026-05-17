@@ -2,8 +2,8 @@ import type {
   AppLogEntry,
   DocxMatchPreviewPayload,
   DocxMatchPreviewResult,
-  DocxPreviewPayload,
-  DocxPreviewResult,
+  DocxReadFilePayload,
+  DocxReadFileResult,
   MaskProfile,
   MaskDocxPayload,
   MaskDocxResult,
@@ -39,7 +39,8 @@ export const localApi = {
   selectOutputDir: () => invoke<string | null>('file:select-output-dir'),
   smokeMaskDocx: (payload: { filePath: string }) =>
     invoke<{ success: boolean; outputPath: string }>('docx:smoke-mask', payload),
-  previewDocx: (payload: DocxPreviewPayload) => invoke<DocxPreviewResult>('docx:preview', payload),
+  readDocxFile: (payload: DocxReadFilePayload) =>
+    invoke<DocxReadFileResult>('docx:read-file', payload),
   maskDocx: (payload: MaskDocxPayload) => invoke<MaskDocxResult>('docx:mask', payload),
   restoreDocx: (payload: RestoreDocxPayload) => invoke<RestoreDocxResult>('docx:restore', payload),
   readSettings: () => invoke<Settings>('settings:read'),

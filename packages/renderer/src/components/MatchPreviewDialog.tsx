@@ -9,7 +9,7 @@ const KIND_HINTS: Record<DocxMatchHitKind, string> = {
   regex: '来自默认规则模板中的正则规则',
   system_keyword: '来自「设置 → 系统关键词」，受脱敏页「系统关键词」开关控制',
   profile_keyword: '来自当前脱敏方案中的方案关键词',
-  manual: '本次文档中划词加入的手动标注',
+  manual: '本次划词加入的手动词，全文子串匹配；可在预览中用 Ctrl/Cmd+F 查找',
 };
 
 type MatchPreviewDialogProps = {
@@ -62,7 +62,7 @@ export function MatchPreviewDialog({
         <div className="match-preview-summary">
           <span>合计 {preview.totalHits} 处</span>
           <span>扫描段落 {preview.paragraphCount}</span>
-          <span>手动项 {preview.manualSelectionHits}</span>
+          <span>手动词 {preview.manualSelectionHits}</span>
         </div>
 
         {!systemKeywordsEnabled && (

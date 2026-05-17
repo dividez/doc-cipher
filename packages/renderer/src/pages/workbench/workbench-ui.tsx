@@ -85,7 +85,7 @@ export function SidebarNav({
         </div>
         <div>
           <h1>DocCipher</h1>
-          <p>本地文档工作台</p>
+          <p>本地文档、内容脱敏工作台</p>
         </div>
       </div>
       <div className="nav-flow">

@@ -33,8 +33,8 @@ class WindowManager implements AppModule {
     const browserWindow = new BrowserWindow({
       width: 1600,
       height: 1000,
-      minWidth: 1360,
-      minHeight: 860,
+      minWidth: 1600,
+      minHeight: 1000,
       show: false, // Use the 'ready-to-show' event to show the instantiated BrowserWindow.
       title: 'DocCipher',
       ...(icon ? { icon } : {}),

@@ -13,13 +13,13 @@ import {
 import {
   settingsSchema,
   type DocxMatchPreviewPayload,
-  type DocxPreviewPayload,
+  type DocxReadFilePayload,
   type MaskDocxPayload,
   type RestoreDocxPayload,
 } from '@app/shared';
 import { maskDocx } from '../services/docx-mask.service.js';
 import { previewDocxMatches } from '../services/docx-match-preview.service.js';
-import { previewDocx } from '../services/docx-preview.service.js';
+import { readDocxFile } from '../services/docx-read-file.service.js';
 import {
   deleteMaskProfile,
   getMaskProfile,
@@ -187,8 +187,8 @@ class IpcModule implements AppModule {
     });
 
     ipcMain.handle(
-      'docx:preview',
-      async (_, payload: DocxPreviewPayload) => await previewDocx(payload),
+      'docx:read-file',
+      async (_, payload: DocxReadFilePayload) => await readDocxFile(payload),
     );
 
     ipcMain.handle(

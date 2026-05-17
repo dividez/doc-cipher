@@ -10,11 +10,7 @@ import type {
 } from '@app/shared';
 import { classifyMatchKind, settingsSchema } from '@app/shared';
 import { shouldProcessPart } from './docx-parts.js';
-import {
-  findMatches,
-  localManualSelectionsForParagraph,
-  selectMatches,
-} from './docx-mask.service.js';
+import { findMatches, selectMatches } from './docx-mask.service.js';
 
 const MAX_SAMPLES = 40;
 const SNIPPET_LEN = 48;
@@ -23,7 +19,7 @@ export async function previewDocxMatches(
   payload: DocxMatchPreviewPayload,
 ): Promise<DocxMatchPreviewResult> {
   const settings = settingsSchema.parse(payload.settings);
-  const manualSelections = payload.manualSelections ?? [];
+  const manualKeywords = payload.manualKeywords ?? [];
   const zip = new AdmZip(payload.filePath);
   const hitByRule = new Map<
     string,
@@ -98,13 +94,7 @@ export async function previewDocxMatches(
       }
       paragraphCount += 1;
 
-      const locals = localManualSelectionsForParagraph(
-        manualSelections,
-        entry.entryName,
-        blockIndex,
-        paragraphText,
-      );
-      const selected = selectMatches(findMatches(paragraphText, settings, locals));
+      const selected = selectMatches(findMatches(paragraphText, settings, manualKeywords));
 
       for (const match of selected) {
         addRuleHit(

@@ -113,6 +113,9 @@ importers:
       '@app/shared':
         specifier: workspace:*
         version: link:../shared
+      docx-preview:
+        specifier: ^0.3.7
+        version: 0.3.7
       lucide-react:
         specifier: 1.16.0
         version: 1.16.0(react@19.2.6)
@@ -1205,6 +1208,12 @@ packages:
     engines: { node: '>=8' }
     os: [darwin]
     hasBin: true
+
+  docx-preview@0.3.7:
+    resolution:
+      {
+        integrity: sha512-Lav69CTA/IYZPJTsKH7oYeoZjyg96N0wEJMNslGJnZJ+dMUZK85Lt5ASC79yUlD48ecWjuv+rkcmFt6EVPV0Xg==,
+      }
 
   dotenv-expand@11.0.6:
     resolution:
@@ -4013,6 +4022,10 @@ snapshots:
       smart-buffer: 4.2.0
       verror: 1.10.1
     optional: true
+
+  docx-preview@0.3.7:
+    dependencies:
+      jszip: 3.10.1
 
   dotenv-expand@11.0.6:
     dependencies:

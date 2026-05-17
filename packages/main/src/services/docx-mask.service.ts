@@ -4,7 +4,6 @@ import type { Document as XmlDocument, Element as XmlElement } from '@xmldom/xml
 import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import { basename, extname, join } from 'node:path';
 import type {
-  DocxManualSelection,
   MappingItem,
   MaskDocxPayload,
   MaskDocxResult,
@@ -12,7 +11,7 @@ import type {
   RestoreMapping,
   Settings,
 } from '@app/shared';
-import { expandManualSegments, settingsSchema } from '@app/shared';
+import { settingsSchema } from '@app/shared';
 import { encryptMapping, sha256 } from './crypto.service.js';
 import { shouldProcessPart } from './docx-parts.js';
 import { logger } from './log.service.js';
@@ -22,6 +21,7 @@ import {
   writeTaskLog,
   writeTaskManifest,
 } from './task.service.js';
+import { selectNonOverlappingMatches } from './match-overlap.js';
 
 type TextNodeRef = {
   element: XmlElement;
@@ -61,7 +61,7 @@ export async function maskDocx(payload: MaskDocxPayload): Promise<MaskDocxResult
     const zip = new AdmZip(inputPath);
     const counters = new Map<string, number>();
     const items: MappingItem[] = [];
-    const manualSelections = payload.manualSelections ?? [];
+    const manualKeywords = payload.manualKeywords ?? [];
 
     for (const entry of zip.getEntries()) {
       if (!shouldProcessPart(entry.entryName)) {
@@ -75,7 +75,7 @@ export async function maskDocx(payload: MaskDocxPayload): Promise<MaskDocxResult
         entry.entryName,
         settings,
         counters,
-        manualSelections,
+        manualKeywords,
       );
 
       if (matches.length > 0) {
@@ -154,32 +154,12 @@ export async function maskDocx(payload: MaskDocxPayload): Promise<MaskDocxResult
   }
 }
 
-export function localManualSelectionsForParagraph(
-  manualSelections: DocxManualSelection[],
-  partName: string,
-  blockIndex: number,
-  paragraphText: string,
-): DocxManualSelection[] {
-  return manualSelections.flatMap((sel) =>
-    expandManualSegments(sel)
-      .filter((s) => s.partName === partName && s.blockIndex === blockIndex)
-      .map((s) => ({
-        ...sel,
-        partName: s.partName,
-        blockIndex: s.blockIndex,
-        start: s.start,
-        end: s.end,
-        text: paragraphText.slice(s.start, s.end),
-      })),
-  );
-}
-
 function maskXmlPart(
   xml: string,
   partName: string,
   settings: Settings,
   counters: Map<string, number>,
-  manualSelections: DocxManualSelection[],
+  manualKeywords: string[],
 ): { updatedXml: string; matches: Match[] } {
   const parser = new DOMParser({
     onError: (level, message) => {
@@ -201,13 +181,7 @@ function maskXmlPart(
       continue;
     }
 
-    const locals = localManualSelectionsForParagraph(
-      manualSelections,
-      partName,
-      blockIndex,
-      paragraphText,
-    );
-    const selected = selectMatches(findMatches(paragraphText, settings, locals));
+    const selected = selectMatches(findMatches(paragraphText, settings, manualKeywords));
     if (selected.length === 0) {
       continue;
     }
@@ -251,28 +225,28 @@ function collectTextNodes(paragraph: XmlElement): TextNodeRef[] {
 export function findMatches(
   text: string,
   settings: Settings,
-  manualSelections: DocxManualSelection[],
+  manualKeywords: string[],
 ): PendingMatch[] {
   const pending: PendingMatch[] = [];
   let order = 0;
   const rules = settings.rules;
 
-  for (const selection of manualSelections) {
-    if (selection.start < 0 || selection.end > text.length || selection.start >= selection.end) {
+  for (const keyword of manualKeywords) {
+    const value = keyword.trim();
+    if (!value) {
       continue;
     }
-    const original = text.slice(selection.start, selection.end);
-    if (original !== selection.text) {
-      continue;
+    let index = text.indexOf(value);
+    while (index !== -1) {
+      pending.push({
+        start: index,
+        end: index + value.length,
+        original: value,
+        ruleId: 'manual_selection',
+        order: order++,
+      });
+      index = text.indexOf(value, index + value.length);
     }
-
-    pending.push({
-      start: selection.start,
-      end: selection.end,
-      original,
-      ruleId: 'manual_selection',
-      order: order++,
-    });
   }
 
   for (const rule of rules) {
@@ -341,23 +315,7 @@ export function findMatches(
 }
 
 export function selectMatches(matches: PendingMatch[]): PendingMatch[] {
-  const selected: PendingMatch[] = [];
-
-  for (const match of matches.sort(
-    (a, b) => a.start - b.start || b.end - b.start - (a.end - a.start) || a.order - b.order,
-  )) {
-    if (selected.some((item) => rangesOverlap(item, match))) {
-      continue;
-    }
-
-    selected.push(match);
-  }
-
-  return selected.sort((a, b) => a.start - b.start);
-}
-
-function rangesOverlap(a: PendingMatch, b: PendingMatch): boolean {
-  return a.start < b.end && b.start < a.end;
+  return selectNonOverlappingMatches(matches);
 }
 
 function createToken(ruleId: string, count: number, rules: MaskingRule[]): string {

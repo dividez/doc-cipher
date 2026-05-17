@@ -2,8 +2,8 @@ import type {
   AppLogEntry,
   DocxMatchPreviewPayload,
   DocxMatchPreviewResult,
-  DocxPreviewPayload,
-  DocxPreviewResult,
+  DocxReadFilePayload,
+  DocxReadFileResult,
   MaskProfile,
   MaskDocxPayload,
   MaskDocxResult,
@@ -34,7 +34,7 @@ export type LocalApi = {
   smokeMaskDocx: (payload: {
     filePath: string;
   }) => Promise<{ success: boolean; outputPath: string }>;
-  previewDocx: (payload: DocxPreviewPayload) => Promise<DocxPreviewResult>;
+  readDocxFile: (payload: DocxReadFilePayload) => Promise<DocxReadFileResult>;
   maskDocx: (payload: MaskDocxPayload) => Promise<MaskDocxResult>;
   restoreDocx: (payload: RestoreDocxPayload) => Promise<RestoreDocxResult>;
   readSettings: () => Promise<Settings>;
@@ -72,7 +72,7 @@ export function isLocalApiReady(): boolean {
   return (
     !!api &&
     typeof api.selectDocx === 'function' &&
-    typeof api.previewDocx === 'function' &&
+    typeof api.readDocxFile === 'function' &&
     typeof api.listMaskProfiles === 'function' &&
     typeof api.previewDocxMatches === 'function' &&
     typeof api.listTaskHistory === 'function' &&

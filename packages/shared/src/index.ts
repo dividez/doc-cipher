@@ -1,5 +1,5 @@
 export * from './build-info.js';
-export * from './lib/manual-selection.js';
+export * from './lib/manual-keyword.js';
 export * from './lib/masking-rules.js';
 export * from './schema/settings.schema.js';
 export * from './schema/mapping.schema.js';

@@ -9,11 +9,11 @@ import {
 import {
   defaultSettings,
   extractSystemKeywords,
-  manualSelectionsOverlap,
+  hasDuplicateManualKeyword,
+  manualKeywordTexts,
   type AppLogEntry,
-  type DocxManualSelection,
   type DocxMatchPreviewResult,
-  type DocxPreviewResult,
+  type ManualKeyword,
   type MaskDocxResult,
   type MaskProfile,
   type MaskingRule,
@@ -25,6 +25,7 @@ import {
 import { AppIcon } from '../components/AppIcon.js';
 import { Badge, Button, Card, cn } from '../components/ui.js';
 import { getDebugApi } from '../lib/debug-api.js';
+import { buildPreviewHighlightTerms } from '../lib/docx-preview-highlights.js';
 import { getLocalApi, isLocalApiReady, type AppStoragePathsInfo } from '../lib/local-api.js';
 import { loadRecentTasks, pushRecentTask, type RecentTask } from '../lib/recent-tasks.js';
 import { AppSettingsPanel } from './workbench/AppSettingsPanel.js';
@@ -44,7 +45,7 @@ import {
   getDroppedPath,
   withGlobalAppConfig,
 } from './workbench/workbench-utils.js';
-import type { ActiveView, ManualSelectionDraft } from './workbench/types.js';
+import type { ActiveView } from './workbench/types.js';
 
 export function WorkbenchPage() {
   const [activeView, setActiveView] = useState<ActiveView>('home');
@@ -58,13 +59,14 @@ export function WorkbenchPage() {
   );
   const [maskResult, setMaskResult] = useState<MaskDocxResult | null>(null);
   const [restoreResult, setRestoreResult] = useState<RestoreDocxResult | null>(null);
-  const [docxPreview, setDocxPreview] = useState<DocxPreviewResult | null>(null);
-  const [previewLoading, setPreviewLoading] = useState(false);
-  const [manualSelections, setManualSelections] = useState<DocxManualSelection[]>([]);
+  const [previewFilePath, setPreviewFilePath] = useState<string | null>(null);
+  const [manualKeywords, setManualKeywords] = useState<ManualKeyword[]>([]);
   const [matchPreview, setMatchPreview] = useState<DocxMatchPreviewResult | null>(null);
   const [matchPreviewLoading, setMatchPreviewLoading] = useState(false);
   const [matchPreviewDialogOpen, setMatchPreviewDialogOpen] = useState(false);
   const matchPreviewDebounceRef = useRef<number | null>(null);
+  const [highlightRevision, setHighlightRevision] = useState(0);
+  const matchPreviewLoadingRef = useRef(false);
   const [maskProfiles, setMaskProfiles] = useState<MaskProfile[]>([]);
   const [activeProfileId, setActiveProfileId] = useState('');
   const [selectedProfileId, setSelectedProfileId] = useState('');
@@ -99,6 +101,16 @@ export function WorkbenchPage() {
   const enabledRules = useMemo(
     () => filterExecutableRules(settings, templateSettings.app),
     [settings, templateSettings.app],
+  );
+  const highlightTerms = useMemo(
+    () =>
+      buildPreviewHighlightTerms({
+        manual: manualKeywordTexts(manualKeywords),
+        profile: extractProfileKeywords(settings),
+        system: extractSystemKeywords(templateSettings),
+        systemEnabled: templateSettings.app.enable_system_keywords,
+      }),
+    [manualKeywords, settings, templateSettings],
   );
   const templateEnabledRules = useMemo(
     () => templateSettings.rules.filter((rule) => rule.enabled),
@@ -193,33 +205,11 @@ export function WorkbenchPage() {
     [showNotice],
   );
 
-  const loadDocxPreview = useCallback(
-    async (path: string) => {
-      if (!isLocalApiReady()) {
-        return;
-      }
-      setPreviewLoading(true);
-      setDocxPreview(null);
-      try {
-        const preview = await getLocalApi().previewDocx({ filePath: path });
-        setDocxPreview(preview);
-        if (preview.blocks.length === 0) {
-          showNotice('info', '文档中没有读取到可预览文本');
-        }
-      } catch (error) {
-        showNotice('error', formatError(error));
-      } finally {
-        setPreviewLoading(false);
-      }
-    },
-    [showNotice],
-  );
-
   const refreshMatchPreview = useCallback(
     async (options?: { silent?: boolean; openDialog?: boolean }) => {
-      if (!isLocalApiReady() || !maskForm.inputPath || !docxPreview) {
+      if (!isLocalApiReady() || !maskForm.inputPath) {
         if (!options?.silent) {
-          showNotice('error', '请先选择文档并等待预览加载');
+          showNotice('error', '请先选择文档');
         }
         return;
       }
@@ -228,7 +218,7 @@ export function WorkbenchPage() {
         const result = await getLocalApi().previewDocxMatches({
           filePath: maskForm.inputPath,
           settings: withGlobalAppConfig(settings, templateSettings.app),
-          manualSelections,
+          manualKeywords: manualKeywordTexts(manualKeywords),
         });
         setMatchPreview(result);
         if (options?.openDialog) {
@@ -243,11 +233,11 @@ export function WorkbenchPage() {
         setMatchPreviewLoading(false);
       }
     },
-    [docxPreview, maskForm.inputPath, settings, templateSettings.app, manualSelections, showNotice],
+    [maskForm.inputPath, settings, templateSettings.app, manualKeywords, showNotice],
   );
 
   useEffect(() => {
-    if (!docxPreview || !maskForm.inputPath) {
+    if (!maskForm.inputPath) {
       return;
     }
     if (matchPreviewDebounceRef.current !== null) {
@@ -261,14 +251,14 @@ export function WorkbenchPage() {
         window.clearTimeout(matchPreviewDebounceRef.current);
       }
     };
-  }, [
-    docxPreview,
-    maskForm.inputPath,
-    settings,
-    manualSelections,
-    templateSettings.app,
-    refreshMatchPreview,
-  ]);
+  }, [maskForm.inputPath, settings, manualKeywords, templateSettings.app, refreshMatchPreview]);
+
+  useEffect(() => {
+    if (matchPreviewLoadingRef.current && !matchPreviewLoading && matchPreview) {
+      setHighlightRevision((revision) => revision + 1);
+    }
+    matchPreviewLoadingRef.current = matchPreviewLoading;
+  }, [matchPreviewLoading, matchPreview]);
 
   useEffect(() => {
     if (!isLocalApiReady()) {
@@ -319,9 +309,9 @@ export function WorkbenchPage() {
     }
     setMaskForm((current) => ({ ...current, inputPath: path }));
     setMaskResult(null);
-    setManualSelections([]);
+    setManualKeywords([]);
+    setPreviewFilePath(path);
     setActiveView('mask');
-    void loadDocxPreview(path);
   }
 
   const pickDocx = useCallback(
@@ -415,11 +405,11 @@ export function WorkbenchPage() {
     setBusy(true);
     try {
       let executionSettings = withGlobalAppConfig(settings, templateSettings.app);
-      if (manualSelections.length > 0) {
+      if (manualKeywords.length > 0) {
         const activeProfile = maskProfiles.find((profile) => profile.id === activeProfileId);
         const autoName =
           activeProfile?.name || `${fileName(maskForm.inputPath).replace(/\.docx$/i, '')} 脱敏方案`;
-        const profileSettings = buildSettingsWithProfileKeywords(settings, manualSelections, '');
+        const profileSettings = buildSettingsWithProfileKeywords(settings, manualKeywords, '');
         const savedProfile = await getLocalApi().saveMaskProfile({
           id: activeProfile?.id,
           name: autoName,
@@ -436,15 +426,15 @@ export function WorkbenchPage() {
         outputDir: maskForm.outputDir || templateSettings.app.default_output_dir || undefined,
         password: maskForm.password,
         settings: executionSettings,
-        manualSelections,
+        manualKeywords: manualKeywordTexts(manualKeywords),
       });
       setMaskResult(result);
       pushRecentTask(maskForm.inputPath);
       setRecentTasks(loadRecentTasks());
-      setDocxPreview(null);
       setMatchPreview(null);
       setMatchPreviewDialogOpen(false);
-      setManualSelections([]);
+      setManualKeywords([]);
+      setPreviewFilePath(null);
       setMaskForm((current) => ({ ...current, inputPath: '', password: '' }));
       setActiveView('home');
       showNotice('success', `脱敏完成，共替换 ${result.itemCount} 处`);
@@ -457,26 +447,28 @@ export function WorkbenchPage() {
     }
   }
 
-  function addManualSelection(selection: ManualSelectionDraft) {
-    const draftAsItem = { ...selection, id: '__draft__' } as DocxManualSelection;
-    const overlaps = manualSelections.some((item) => manualSelectionsOverlap(item, draftAsItem));
-    if (overlaps) {
-      showNotice('error', '这段文字已经和现有手动项重叠');
+  function addManualKeyword(text: string) {
+    const normalized = text.trim();
+    if (!normalized) {
+      return;
+    }
+    if (hasDuplicateManualKeyword(manualKeywords, normalized)) {
+      showNotice('error', '该词已在手动词列表中');
       return;
     }
 
-    setManualSelections((current) => [
+    setManualKeywords((current) => [
       ...current,
       {
-        ...selection,
         id: `manual-${Date.now()}-${current.length + 1}`,
+        text: normalized,
       },
     ]);
-    showNotice('success', `已加入手动脱敏：${compactText(selection.text, 18)}`);
+    showNotice('success', `已加入手动词：${compactText(normalized, 18)}`);
   }
 
-  function removeManualSelection(id: string) {
-    setManualSelections((current) => current.filter((item) => item.id !== id));
+  function removeManualKeyword(id: string) {
+    setManualKeywords((current) => current.filter((item) => item.id !== id));
   }
 
   function selectMaskProfile(profileId: string) {
@@ -491,7 +483,7 @@ export function WorkbenchPage() {
       ...profile.settings,
       app: templateSettings.app,
     });
-    setManualSelections([]);
+    setManualKeywords([]);
     showNotice('success', `已切换方案：${profile.name}`);
   }
 
@@ -499,7 +491,7 @@ export function WorkbenchPage() {
     setActiveProfileId('');
     setSelectedProfileId('');
     setSettings(templateSettings);
-    setManualSelections([]);
+    setManualKeywords([]);
     showNotice('info', '已新建临时方案，可命名后保存');
   }
 
@@ -514,7 +506,7 @@ export function WorkbenchPage() {
     try {
       const profileSettings = buildSettingsWithProfileKeywords(
         settings,
-        manualSelections,
+        manualKeywords,
         keywordInput ?? extractProfileKeywords(settings).join('\n'),
       );
       const saved = await getLocalApi().saveMaskProfile({
@@ -525,7 +517,7 @@ export function WorkbenchPage() {
       setSettings(saved.settings);
       setActiveProfileId(saved.id);
       setSelectedProfileId(saved.id);
-      setManualSelections([]);
+      setManualKeywords([]);
       await refreshMaskProfiles();
       showNotice('success', `方案已保存：${saved.name}`);
     } catch (error) {
@@ -847,20 +839,21 @@ export function WorkbenchPage() {
               activeProfileId={activeProfileId}
               busy={busy}
               dragOver={dragOver}
-              docxPreview={docxPreview}
               enabledRules={enabledRules}
               form={maskForm}
-              manualSelections={manualSelections}
+              manualKeywords={manualKeywords}
               matchPreview={matchPreview}
               matchPreviewDialogOpen={matchPreviewDialogOpen}
               matchPreviewLoading={matchPreviewLoading}
+              previewFilePath={previewFilePath}
+              highlightTerms={highlightTerms}
+              highlightRevision={highlightRevision}
               profiles={maskProfiles}
-              previewLoading={previewLoading}
               result={maskResult}
               systemKeywords={extractSystemKeywords(templateSettings)}
               systemKeywordsEnabled={templateSettings.app.enable_system_keywords}
-              onAddManualSelection={addManualSelection}
-              onClearManualSelections={() => setManualSelections([])}
+              onAddManualKeyword={addManualKeyword}
+              onClearManualKeywords={() => setManualKeywords([])}
               onCreateProfile={createMaskProfileDraft}
               onDragEnter={() => setDragOver(true)}
               onDragLeave={() => setDragOver(false)}
@@ -868,7 +861,7 @@ export function WorkbenchPage() {
               onDrop={(event) => handleDrop(event, 'mask')}
               onFormChange={setMaskForm}
               onPreviewSelectionError={showNotice}
-              onRemoveManualSelection={removeManualSelection}
+              onRemoveManualKeyword={removeManualKeyword}
               onOpenFolder={openInFolder}
               onPickDocx={() => void pickDocx('mask')}
               onPickOutput={() => void pickOutputDir('mask')}
@@ -881,7 +874,9 @@ export function WorkbenchPage() {
               onReset={() => {
                 setMaskResult(null);
                 setMaskForm({ inputPath: '', outputDir: '', password: '' });
+                setPreviewFilePath(null);
                 setMatchPreview(null);
+                setManualKeywords([]);
                 setActiveView('home');
               }}
             />

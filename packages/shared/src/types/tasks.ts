@@ -16,33 +16,17 @@ export type DocxTextBlock = {
   structure?: DocxStructureHint;
 };
 
-export type DocxPreviewPayload = {
-  filePath: string;
-};
-
-export type DocxPreviewResult = {
-  filePath: string;
-  blocks: DocxTextBlock[];
-  blockCount: number;
-  charCount: number;
-};
-
-export type DocxManualSegment = {
-  partName: string;
-  blockIndex: number;
-  start: number;
-  end: number;
-};
-
-/** 手动项；跨段落时使用 segments，单段时也可仅填 segments[0] 对应字段（兼容旧字段） */
-export type DocxManualSelection = {
+export type ManualKeyword = {
   id: string;
-  partName: string;
-  blockIndex: number;
-  start: number;
-  end: number;
   text: string;
-  segments?: DocxManualSegment[];
+};
+
+export type DocxReadFilePayload = {
+  filePath: string;
+};
+
+export type DocxReadFileResult = {
+  base64: string;
 };
 
 export type MaskDocxPayload = {
@@ -50,7 +34,7 @@ export type MaskDocxPayload = {
   outputDir?: string;
   password: string;
   settings?: Settings;
-  manualSelections?: DocxManualSelection[];
+  manualKeywords?: string[];
 };
 
 export type MaskDocxResult = {
@@ -134,7 +118,7 @@ export type DocxMatchPreviewResult = {
 export type DocxMatchPreviewPayload = {
   filePath: string;
   settings: Settings;
-  manualSelections?: DocxManualSelection[];
+  manualKeywords?: string[];
 };
 
 export type TaskHistoryEntry = {

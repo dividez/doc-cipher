@@ -12,19 +12,17 @@ import {
 import {
   PROFILE_KEYWORD_RULE_ID,
   SYSTEM_KEYWORD_RULE_ID,
-  type DocxMatchHit,
-  type DocxManualSelection,
   type DocxMatchPreviewResult,
-  type DocxPreviewResult,
   type KeywordRule,
+  type ManualKeyword,
   type MaskDocxResult,
   type MaskProfile,
   type MaskingRule,
 } from '@app/shared';
+import type { PreviewHighlightTerm } from '../../lib/docx-preview-highlights.js';
 import { MatchPreviewDialog } from '../../components/MatchPreviewDialog.js';
 import { Button, Card, Input, cn } from '../../components/ui.js';
 import { DocxReviewPanel } from './DocxReviewPanel.js';
-import type { ManualSelectionDraft } from './types.js';
 import { Field, PanelHero, ResultFileRow } from './workbench-ui.js';
 import { fileName } from './workbench-utils.js';
 
@@ -32,20 +30,21 @@ export function MaskPanel({
   activeProfileId,
   busy,
   dragOver,
-  docxPreview,
   enabledRules,
   form,
-  manualSelections,
+  manualKeywords,
   matchPreview,
   matchPreviewDialogOpen,
   matchPreviewLoading,
+  previewFilePath,
+  highlightTerms,
+  highlightRevision,
   profiles,
-  previewLoading,
   result,
   systemKeywords,
   systemKeywordsEnabled,
-  onAddManualSelection,
-  onClearManualSelections,
+  onAddManualKeyword,
+  onClearManualKeywords,
   onCreateProfile,
   onDragEnter,
   onDragLeave,
@@ -53,7 +52,7 @@ export function MaskPanel({
   onDrop,
   onFormChange,
   onPreviewSelectionError,
-  onRemoveManualSelection,
+  onRemoveManualKeyword,
   onOpenFolder,
   onPickDocx,
   onPickOutput,
@@ -68,20 +67,21 @@ export function MaskPanel({
   activeProfileId: string;
   busy: boolean;
   dragOver: boolean;
-  docxPreview: DocxPreviewResult | null;
   enabledRules: MaskingRule[];
   form: { inputPath: string; outputDir: string; password: string };
-  manualSelections: DocxManualSelection[];
+  manualKeywords: ManualKeyword[];
   matchPreview: DocxMatchPreviewResult | null;
   matchPreviewDialogOpen: boolean;
   matchPreviewLoading: boolean;
+  previewFilePath: string | null;
+  highlightTerms: PreviewHighlightTerm[];
+  highlightRevision: number;
   profiles: MaskProfile[];
-  previewLoading: boolean;
   result: MaskDocxResult | null;
   systemKeywords: string[];
   systemKeywordsEnabled: boolean;
-  onAddManualSelection: (selection: ManualSelectionDraft) => void;
-  onClearManualSelections: () => void;
+  onAddManualKeyword: (text: string) => void;
+  onClearManualKeywords: () => void;
   onCreateProfile: () => void;
   onDragEnter: () => void;
   onDragLeave: () => void;
@@ -91,7 +91,7 @@ export function MaskPanel({
     React.SetStateAction<{ inputPath: string; outputDir: string; password: string }>
   >;
   onPreviewSelectionError: (type: 'success' | 'error' | 'info', text: string) => void;
-  onRemoveManualSelection: (id: string) => void;
+  onRemoveManualKeyword: (id: string) => void;
   onOpenFolder: (path: string) => void;
   onPickDocx: () => void;
   onPickOutput: () => void;
@@ -131,27 +131,13 @@ export function MaskPanel({
       ) ?? null,
     [enabledRules],
   );
-  const ruleHitsByBlock = useMemo(() => {
-    const map = new Map<string, DocxMatchHit[]>();
-    if (!matchPreview) {
-      return map;
-    }
-    for (const hit of matchPreview.hits) {
-      const key = `${hit.partName}:${hit.blockIndex}`;
-      const list = map.get(key) ?? [];
-      list.push(hit);
-      map.set(key, list);
-    }
-    return map;
-  }, [matchPreview]);
-
   return (
     <div className="panel-stack panel-stack-wide">
       <PanelHero
         title={hasFile ? fileName(form.inputPath) : '脱敏任务'}
         description={
           hasFile
-            ? '在文档预览中划词加入手动脱敏项，再配置密码并生成文件。'
+            ? '在版式预览中划词加入手动词，再配置密码并生成文件。'
             : '请先选择或拖入 Word 文档。'
         }
       />
@@ -175,14 +161,14 @@ export function MaskPanel({
       {hasFile && (
         <div className="mask-layout">
           <DocxReviewPanel
-            preview={docxPreview}
-            loading={previewLoading}
-            ruleHitsByBlock={ruleHitsByBlock}
-            selections={manualSelections}
-            onAddSelection={onAddManualSelection}
-            onClearSelections={onClearManualSelections}
-            onRemoveSelection={onRemoveManualSelection}
-            onSelectionError={onPreviewSelectionError}
+            previewFilePath={previewFilePath}
+            loading={false}
+            manualKeywordCount={manualKeywords.length}
+            highlightTerms={highlightTerms}
+            highlightRevision={highlightRevision}
+            onAddKeyword={onAddManualKeyword}
+            onClearKeywords={onClearManualKeywords}
+            onPreviewError={onPreviewSelectionError}
           />
 
           {matchPreview && matchPreviewDialogOpen && (
@@ -257,18 +243,18 @@ export function MaskPanel({
 
             <section className="manual-summary">
               <div className="section-head">
-                <h3>手动标注</h3>
-                <span className="section-meta">{manualSelections.length} 项</span>
+                <h3>手动词</h3>
+                <span className="section-meta">{manualKeywords.length} 项</span>
               </div>
-              {manualSelections.length > 0 ? (
+              {manualKeywords.length > 0 ? (
                 <ul className="manual-list">
-                  {manualSelections.map((selection) => (
-                    <li key={selection.id}>
-                      <span title={selection.text}>{selection.text}</span>
+                  {manualKeywords.map((keyword) => (
+                    <li key={keyword.id}>
+                      <span title={keyword.text}>{keyword.text}</span>
                       <button
                         type="button"
-                        aria-label="移除手动项"
-                        onClick={() => onRemoveManualSelection(selection.id)}
+                        aria-label="移除手动词"
+                        onClick={() => onRemoveManualKeyword(keyword.id)}
                       >
                         <Trash2 size={14} />
                       </button>
