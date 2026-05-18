@@ -161,7 +161,7 @@ export function ruleTypeLabel(rule: MaskingRule): string {
   return '手动项';
 }
 
-export function getDroppedPath(file: File): string | null {
-  const electronFile = file as File & { path?: string };
-  return electronFile.path ?? null;
+export function getDroppedPath(file: File, getPathForFile: (file: File) => string): string | null {
+  const path = getPathForFile(file).trim();
+  return path.length > 0 ? path : null;
 }

@@ -378,23 +378,31 @@ export function WorkbenchPage() {
     }
   }
 
-  function handleDrop(event: React.DragEvent, target: 'home' | 'mask') {
+  function handleDrop(event: React.DragEvent, _target: 'home' | 'mask') {
     event.preventDefault();
     setDragOver(false);
     const file = event.dataTransfer.files[0];
     if (!file) {
       return;
     }
-    const path = getDroppedPath(file);
-    if (!path) {
-      showNotice('error', '无法读取拖拽文件路径，请使用「选择文件」按钮');
+    if (!isLocalApiReady()) {
+      showNotice('error', '服务不可用');
       return;
     }
-    if (!path.toLowerCase().endsWith('.docx')) {
-      showNotice('error', '仅支持 .docx 文件');
-      return;
+    try {
+      const path = getDroppedPath(file, getLocalApi().getPathForFile);
+      if (!path) {
+        showNotice('error', '无法读取拖拽文件路径，请使用「选择文件」按钮');
+        return;
+      }
+      if (!path.toLowerCase().endsWith('.docx')) {
+        showNotice('error', '仅支持 .docx 文件');
+        return;
+      }
+      selectDocxFile(path, 'mask');
+    } catch (error) {
+      showNotice('error', formatError(error));
     }
-    selectDocxFile(path, target === 'home' ? 'mask' : 'mask');
   }
 
   async function runMask() {

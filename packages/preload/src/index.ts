@@ -13,7 +13,7 @@ import type {
   TaskHistoryEntry,
 } from '@app/shared';
 
-const { ipcRenderer } = require('electron') as typeof import('electron');
+const { ipcRenderer, webUtils } = require('electron') as typeof import('electron');
 
 function invoke<T>(channel: string, payload?: unknown): Promise<T> {
   return ipcRenderer.invoke(channel, payload) as Promise<T>;
@@ -34,6 +34,7 @@ export type AppStoragePathsInfo = {
 
 export const localApi = {
   ping: () => invoke<{ message: string; time: string }>('app:ping'),
+  getPathForFile: (file: File) => webUtils.getPathForFile(file),
   selectDocx: () => invoke<string | null>('file:select-docx'),
   selectRestoreFile: () => invoke<string | null>('file:select-restore-file'),
   selectOutputDir: () => invoke<string | null>('file:select-output-dir'),

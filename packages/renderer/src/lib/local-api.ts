@@ -28,6 +28,7 @@ export type AppStoragePathsInfo = {
 
 export type LocalApi = {
   ping: () => Promise<{ message: string; time: string }>;
+  getPathForFile: (file: File) => string;
   selectDocx: () => Promise<string | null>;
   selectRestoreFile: () => Promise<string | null>;
   selectOutputDir: () => Promise<string | null>;
