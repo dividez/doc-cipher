@@ -1,7 +1,7 @@
 import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { defaultSettings, settingsSchema, type Settings } from '@app/shared';
-import { getAppStoragePaths } from './app-paths.service.js';
+import { getAppStoragePaths } from '../app/app-paths.service.js';
 
 function settingsPath(): string {
   return join(getAppStoragePaths().appConfigDir, 'setting.json');
@@ -29,6 +29,15 @@ function normalizeSettings(raw: unknown): Settings {
       ...(typeof source.app === 'object' && source.app !== null
         ? (source.app as Record<string, unknown>)
         : {}),
+      ai_assist: {
+        ...defaultSettings.app.ai_assist,
+        ...(typeof source.app === 'object' &&
+        source.app !== null &&
+        typeof (source.app as Record<string, unknown>).ai_assist === 'object' &&
+        (source.app as Record<string, unknown>).ai_assist !== null
+          ? ((source.app as Record<string, unknown>).ai_assist as Record<string, unknown>)
+          : {}),
+      },
     },
     masking: {
       ...defaultSettings.masking,

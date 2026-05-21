@@ -1,9 +1,14 @@
 import type {
+  AiDetectPayload,
+  AiDetectResult,
+  AiDownloadProgress,
+  AiStatus,
   AppLogEntry,
   DocxMatchPreviewPayload,
   DocxMatchPreviewResult,
   DocxReadFilePayload,
   DocxReadFileResult,
+  InstalledModel,
   MaskProfile,
   MaskDocxPayload,
   MaskDocxResult,
@@ -65,6 +70,22 @@ export const localApi = {
   resetUserDataDir: () =>
     invoke<{ path: string; needsRestart: boolean }>('app:reset-user-data-dir'),
   relaunchApp: () => invoke<void>('app:relaunch'),
+  getAiStatus: () => invoke<AiStatus>('ai:get-status'),
+  fetchAiManifest: () => invoke<unknown>('ai:fetch-manifest'),
+  downloadAiModel: (modelId?: string) => invoke<InstalledModel>('ai:download-model', modelId),
+  cancelAiDownload: () => invoke<void>('ai:cancel-download'),
+  deleteAiModel: (modelId?: string) => invoke<void>('ai:delete-model', modelId),
+  detectSensitive: (payload: AiDetectPayload) =>
+    invoke<AiDetectResult>('ai:detect-sensitive', payload),
+  onAiDownloadProgress: (callback: (progress: AiDownloadProgress) => void) => {
+    const listener = (_event: unknown, progress: AiDownloadProgress) => {
+      callback(progress);
+    };
+    ipcRenderer.on('ai:download-progress', listener);
+    return () => {
+      ipcRenderer.removeListener('ai:download-progress', listener);
+    };
+  },
   onNavigate: (callback: (view: string) => void) => {
     const listener = (_event: unknown, view: string) => {
       callback(view);

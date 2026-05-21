@@ -3,11 +3,16 @@ import type { MaskingRule } from '../schema/settings.schema.js';
 export const SYSTEM_KEYWORD_RULE_ID = 'keywords';
 export const PROFILE_KEYWORD_RULE_ID = 'profile_keywords';
 
-export type DocxMatchHitKind = 'regex' | 'system_keyword' | 'profile_keyword' | 'manual';
+export const AI_SENSITIVE_RULE_ID = 'ai_sensitive';
+
+export type DocxMatchHitKind = 'regex' | 'system_keyword' | 'profile_keyword' | 'manual' | 'ai';
 
 export function classifyMatchKind(ruleId: string): DocxMatchHitKind {
   if (ruleId === 'manual_selection') {
     return 'manual';
+  }
+  if (ruleId === AI_SENSITIVE_RULE_ID) {
+    return 'ai';
   }
   if (ruleId === SYSTEM_KEYWORD_RULE_ID) {
     return 'system_keyword';
@@ -28,6 +33,8 @@ export function matchKindLabel(kind: DocxMatchHitKind): string {
       return '方案关键词';
     case 'manual':
       return '手动划词';
+    case 'ai':
+      return 'AI 识别';
   }
 }
 

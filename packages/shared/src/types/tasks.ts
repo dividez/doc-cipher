@@ -35,6 +35,7 @@ export type MaskDocxPayload = {
   password: string;
   settings?: Settings;
   manualKeywords?: string[];
+  aiAssist?: boolean;
 };
 
 export type MaskDocxResult = {
@@ -149,6 +150,7 @@ export type DocxMatchPreviewPayload = {
   filePath: string;
   settings: Settings;
   manualKeywords?: string[];
+  aiAssist?: boolean;
 };
 
 export type TaskHistoryEntry = {

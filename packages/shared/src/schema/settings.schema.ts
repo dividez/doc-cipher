@@ -33,10 +33,19 @@ export const maskingRuleSchema = z.discriminatedUnion('type', [
   manualRuleSchema,
 ]);
 
+export const aiAssistSettingsSchema = z.object({
+  enabled: z.boolean().default(false),
+  confidence_threshold: z.number().min(0).max(1).default(0.75),
+});
+
 export const appSettingsSchema = z.object({
   enable_regex_rules: z.boolean().default(true),
   enable_system_keywords: z.boolean().default(true),
   default_output_dir: z.string().default(''),
+  ai_assist: aiAssistSettingsSchema.default({
+    enabled: false,
+    confidence_threshold: 0.75,
+  }),
 });
 
 export const settingsSchema = z.object({
@@ -53,6 +62,7 @@ export type RegexRule = z.infer<typeof regexRuleSchema>;
 export type KeywordRule = z.infer<typeof keywordRuleSchema>;
 export type ManualRule = z.infer<typeof manualRuleSchema>;
 export type MaskingRule = z.infer<typeof maskingRuleSchema>;
+export type AiAssistSettings = z.infer<typeof aiAssistSettingsSchema>;
 export type AppSettingsConfig = z.infer<typeof appSettingsSchema>;
 export type Settings = z.infer<typeof settingsSchema>;
 
@@ -62,6 +72,10 @@ export const defaultSettings: Settings = {
     enable_regex_rules: true,
     enable_system_keywords: true,
     default_output_dir: '',
+    ai_assist: {
+      enabled: false,
+      confidence_threshold: 0.75,
+    },
   },
   masking: {
     placeholder_style: 'typed_counter',
@@ -91,6 +105,14 @@ export const defaultSettings: Settings = {
       enabled: true,
       keywords: ['张三', '某某公司'],
       placeholder: '[KEYWORD_{n}]',
+    },
+    {
+      id: 'ai_sensitive',
+      name: 'AI 敏感实体',
+      type: 'keyword',
+      enabled: false,
+      keywords: [],
+      placeholder: '[AI_{n}]',
     },
   ],
 };

@@ -12,16 +12,17 @@ import type {
   Settings,
 } from '@app/shared';
 import { settingsSchema } from '@app/shared';
-import { encryptMapping, sha256 } from './crypto.service.js';
+import { encryptMapping, sha256 } from '../crypto/crypto.service.js';
 import { shouldProcessPart } from './docx-parts.js';
-import { logger } from './log.service.js';
+import { logger } from '../app/log.service.js';
 import {
   createTaskContext,
   summarizeRules,
   writeTaskLog,
   writeTaskManifest,
-} from './task.service.js';
+} from '../task/task.service.js';
 import { selectNonOverlappingMatches } from './match-overlap.js';
+import { collectParagraphMatches, resetAiParagraphBudget } from './paragraph-matches.service.js';
 
 type TextNodeRef = {
   element: XmlElement;
@@ -43,6 +44,7 @@ type PendingMatch = Omit<Match, 'token'>;
 
 export async function maskDocx(payload: MaskDocxPayload): Promise<MaskDocxResult> {
   const settings = settingsSchema.parse(payload.settings);
+  resetAiParagraphBudget();
   const inputPath = payload.inputPath;
   const task = await createTaskContext({
     kind: 'mask',
@@ -70,12 +72,13 @@ export async function maskDocx(payload: MaskDocxPayload): Promise<MaskDocxResult
 
       await writeTaskLog(task, `Parse ${entry.entryName}`);
       const xml = entry.getData().toString('utf8');
-      const { updatedXml, matches } = maskXmlPart(
+      const { updatedXml, matches } = await maskXmlPart(
         xml,
         entry.entryName,
         settings,
         counters,
         manualKeywords,
+        payload.aiAssist,
       );
 
       if (matches.length > 0) {
@@ -154,13 +157,14 @@ export async function maskDocx(payload: MaskDocxPayload): Promise<MaskDocxResult
   }
 }
 
-function maskXmlPart(
+async function maskXmlPart(
   xml: string,
   partName: string,
   settings: Settings,
   counters: Map<string, number>,
   manualKeywords: string[],
-): { updatedXml: string; matches: Match[] } {
+  aiAssist?: boolean,
+): Promise<{ updatedXml: string; matches: Match[] }> {
   const parser = new DOMParser({
     onError: (level, message) => {
       if (level === 'fatalError') {
@@ -181,7 +185,9 @@ function maskXmlPart(
       continue;
     }
 
-    const selected = selectMatches(findMatches(paragraphText, settings, manualKeywords));
+    const selected = await collectParagraphMatches(paragraphText, settings, manualKeywords, {
+      aiAssist,
+    });
     if (selected.length === 0) {
       continue;
     }

@@ -10,7 +10,9 @@ import type {
 } from '@app/shared';
 import { classifyMatchKind, settingsSchema } from '@app/shared';
 import { shouldProcessPart } from './docx-parts.js';
-import { findMatches, selectMatches } from './docx-mask.service.js';
+import { collectParagraphMatches, resetAiParagraphBudget } from './paragraph-matches.service.js';
+
+const MAX_AI_PREVIEW_PARAGRAPHS = 50;
 
 const MAX_SAMPLES = 40;
 const SNIPPET_LEN = 48;
@@ -20,6 +22,9 @@ export async function previewDocxMatches(
 ): Promise<DocxMatchPreviewResult> {
   const settings = settingsSchema.parse(payload.settings);
   const manualKeywords = payload.manualKeywords ?? [];
+  resetAiParagraphBudget(
+    (payload.aiAssist ?? settings.app.ai_assist.enabled) ? MAX_AI_PREVIEW_PARAGRAPHS : 0,
+  );
   const zip = new AdmZip(payload.filePath);
   const hitByRule = new Map<
     string,
@@ -94,7 +99,9 @@ export async function previewDocxMatches(
       }
       paragraphCount += 1;
 
-      const selected = selectMatches(findMatches(paragraphText, settings, manualKeywords));
+      const selected = await collectParagraphMatches(paragraphText, settings, manualKeywords, {
+        aiAssist: payload.aiAssist,
+      });
 
       for (const match of selected) {
         addRuleHit(

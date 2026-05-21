@@ -4,7 +4,7 @@
   "scripts": {
     "build": "vite build",
     "typecheck": "tsc --noEmit",
-    "test": "node --experimental-strip-types --test src/lib/profile-id.test.ts src/services/docx-mask-overlap.test.ts src/services/docx-restore-partial.test.ts"
+    "test": "node --experimental-strip-types --test src/lib/profile-id.test.ts src/services/docx/docx-mask-overlap.test.ts src/services/docx/docx-restore-partial.test.ts src/services/ai/ai-detect.test.ts"
   },
   "exports": {
     ".": {

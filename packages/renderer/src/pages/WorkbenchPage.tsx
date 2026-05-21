@@ -215,10 +215,12 @@ export function WorkbenchPage() {
       }
       setMatchPreviewLoading(true);
       try {
+        const appConfig = templateSettings.app;
         const result = await getLocalApi().previewDocxMatches({
           filePath: maskForm.inputPath,
-          settings: withGlobalAppConfig(settings, templateSettings.app),
+          settings: withGlobalAppConfig(settings, appConfig),
           manualKeywords: manualKeywordTexts(manualKeywords),
+          aiAssist: appConfig.ai_assist.enabled,
         });
         setMatchPreview(result);
         if (options?.openDialog) {
@@ -435,6 +437,7 @@ export function WorkbenchPage() {
         password: maskForm.password,
         settings: executionSettings,
         manualKeywords: manualKeywordTexts(manualKeywords),
+        aiAssist: templateSettings.app.ai_assist.enabled,
       });
       setMaskResult(result);
       pushRecentTask(maskForm.inputPath);
@@ -958,6 +961,7 @@ export function WorkbenchPage() {
               onSettingsTextChange={setSettingsText}
               onReload={() => void refreshSettings()}
               onSave={() => void saveSettingsJson()}
+              onNotice={showNotice}
             />
           )}
         </main>

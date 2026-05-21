@@ -3,13 +3,20 @@ import { ChevronDown, ChevronRight, X } from 'lucide-react';
 import { type DocxMatchHitKind, type DocxMatchPreviewResult, matchKindLabel } from '@app/shared';
 import { Button } from './ui';
 
-const KIND_ORDER: DocxMatchHitKind[] = ['regex', 'system_keyword', 'profile_keyword', 'manual'];
+const KIND_ORDER: DocxMatchHitKind[] = [
+  'regex',
+  'system_keyword',
+  'profile_keyword',
+  'manual',
+  'ai',
+];
 
 const KIND_HINTS: Record<DocxMatchHitKind, string> = {
   regex: '来自默认规则模板中的正则规则',
   system_keyword: '来自「设置 → 系统关键词」，受脱敏页「系统关键词」开关控制',
   profile_keyword: '来自当前脱敏方案中的方案关键词',
   manual: '本次划词加入的手动词，全文子串匹配；可在预览中用 Ctrl/Cmd+F 查找',
+  ai: '来自「应用设置 → AI 辅助脱敏」本地模型识别',
 };
 
 type MatchPreviewDialogProps = {

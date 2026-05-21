@@ -1,9 +1,14 @@
 import type {
+  AiDetectPayload,
+  AiDetectResult,
+  AiDownloadProgress,
+  AiStatus,
   AppLogEntry,
   DocxMatchPreviewPayload,
   DocxMatchPreviewResult,
   DocxReadFilePayload,
   DocxReadFileResult,
+  InstalledModel,
   MaskProfile,
   MaskDocxPayload,
   MaskDocxResult,
@@ -59,6 +64,13 @@ export type LocalApi = {
   pickUserDataDir: () => Promise<{ path: string; needsRestart: boolean } | null>;
   resetUserDataDir: () => Promise<{ path: string; needsRestart: boolean }>;
   relaunchApp: () => Promise<void>;
+  getAiStatus: () => Promise<AiStatus>;
+  fetchAiManifest: () => Promise<unknown>;
+  downloadAiModel: (modelId?: string) => Promise<InstalledModel>;
+  cancelAiDownload: () => Promise<void>;
+  deleteAiModel: (modelId?: string) => Promise<void>;
+  detectSensitive: (payload: AiDetectPayload) => Promise<AiDetectResult>;
+  onAiDownloadProgress: (callback: (progress: AiDownloadProgress) => void) => () => void;
   onNavigate: (callback: (view: string) => void) => () => void;
 };
 

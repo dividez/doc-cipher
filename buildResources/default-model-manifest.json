@@ -1,0 +1,71 @@
+{
+  "version": "1.0.0",
+  "models": [
+    {
+      "id": "qwen2.5-1.5b-instruct-q4",
+      "name": "中文 AI 脱敏小模型",
+      "description": "默认推荐。适合姓名、公司名、地址、项目名称等常见敏感信息，速度与效果均衡。",
+      "runtime": "llama.cpp",
+      "format": "gguf",
+      "file_name": "model.gguf",
+      "download_url": "https://www.modelscope.cn/models/Qwen/Qwen2.5-1.5B-Instruct-GGUF/resolve/master/qwen2.5-1.5b-instruct-q4_k_m.gguf",
+      "size_bytes": 986000000,
+      "min_memory_gb": 8,
+      "tier": "balanced",
+      "recommended": true,
+      "hardware": {
+        "min_memory_gb": 8,
+        "recommended_memory_gb": 12,
+        "min_cpu_cores": 4,
+        "disk_gb": 1.2,
+        "cpu": "x64 / Apple Silicon，4 核及以上；纯 CPU 推理",
+        "gpu": "非必需；Apple Silicon 或 16GB+ 内存设备体验更流畅",
+        "notes": "普通办公本可运行；首次加载模型约需数十秒。"
+      }
+    },
+    {
+      "id": "qwen2.5-0.5b-instruct-q4",
+      "name": "轻量 AI 脱敏模型",
+      "description": "备选。体积更小、占用更低，适合内存紧张或只需基础实体识别的场景，复杂句式准确率略低。",
+      "runtime": "llama.cpp",
+      "format": "gguf",
+      "file_name": "model.gguf",
+      "download_url": "https://www.modelscope.cn/models/Qwen/Qwen2.5-0.5B-Instruct-GGUF/resolve/master/qwen2.5-0.5b-instruct-q4_k_m.gguf",
+      "size_bytes": 398000000,
+      "min_memory_gb": 4,
+      "tier": "light",
+      "recommended": false,
+      "hardware": {
+        "min_memory_gb": 4,
+        "recommended_memory_gb": 6,
+        "min_cpu_cores": 2,
+        "disk_gb": 0.5,
+        "cpu": "x64 / Apple Silicon，2 核及以上",
+        "gpu": "不需要独显",
+        "notes": "适合 8GB 内存的老设备；长文档推理仍可能较慢。"
+      }
+    },
+    {
+      "id": "qwen2.5-3b-instruct-q4",
+      "name": "高精度 AI 脱敏模型",
+      "description": "备选。参数量更大，对复杂表述、多实体段落识别更稳，下载体积与内存占用更高。",
+      "runtime": "llama.cpp",
+      "format": "gguf",
+      "file_name": "model.gguf",
+      "download_url": "https://www.modelscope.cn/models/Qwen/Qwen2.5-3B-Instruct-GGUF/resolve/master/qwen2.5-3b-instruct-q4_k_m.gguf",
+      "size_bytes": 2100000000,
+      "min_memory_gb": 12,
+      "tier": "quality",
+      "recommended": false,
+      "hardware": {
+        "min_memory_gb": 12,
+        "recommended_memory_gb": 16,
+        "min_cpu_cores": 4,
+        "disk_gb": 2.2,
+        "cpu": "x64 / Apple Silicon，4 核及以上；建议关闭其他大内存应用",
+        "gpu": "非必需；16GB 统一内存（M 系列）或 32GB 系统内存更稳妥",
+        "notes": "大文档脱敏耗时会明显长于 1.5B；不建议 8GB 内存机器选用。"
+      }
+    }
+  ]
+}

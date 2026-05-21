@@ -3,34 +3,47 @@ import type { ModuleContext } from '../ModuleContext.js';
 import { access, constants } from 'node:fs/promises';
 import { copyFile, mkdir, readFile, writeFile } from 'node:fs/promises';
 import { basename, dirname, extname, join } from 'node:path';
-import { dialog, ipcMain, shell } from 'electron';
-import { getAppStoragePathsInfo } from '../services/app-paths.service.js';
+import { BrowserWindow, dialog, ipcMain, shell } from 'electron';
+import { getAppStoragePathsInfo } from '../services/app/app-paths.service.js';
 import {
   clearBootstrapUserDataDir,
   getDefaultUserDataDir,
   writeBootstrapUserDataDir,
-} from '../services/data-dir-bootstrap.js';
+} from '../services/app/data-dir-bootstrap.js';
 import {
   settingsSchema,
+  type AiDetectPayload,
+  type AiDownloadProgress,
   type DocxMatchPreviewPayload,
   type DocxReadFilePayload,
   type MaskDocxPayload,
   type RestoreDocxPayload,
 } from '@app/shared';
-import { maskDocx } from '../services/docx-mask.service.js';
-import { previewDocxMatches } from '../services/docx-match-preview.service.js';
-import { readDocxFile } from '../services/docx-read-file.service.js';
+import { maskDocx } from '../services/docx/docx-mask.service.js';
+import { previewDocxMatches } from '../services/docx/docx-match-preview.service.js';
+import { readDocxFile } from '../services/docx/docx-read-file.service.js';
 import {
   deleteMaskProfile,
   getMaskProfile,
   importMaskProfile,
   listMaskProfiles,
   saveMaskProfile,
-} from '../services/profile.service.js';
-import { restoreDocx } from '../services/docx-restore.service.js';
-import { readSettings, saveSettings } from '../services/settings.service.js';
-import { configureLogger, logger, readAppLogs } from '../services/log.service.js';
-import { listTaskHistory } from '../services/task.service.js';
+} from '../services/profile/profile.service.js';
+import { restoreDocx } from '../services/docx/docx-restore.service.js';
+import { readSettings, saveSettings } from '../services/settings/settings.service.js';
+import { configureLogger, logger, readAppLogs } from '../services/app/log.service.js';
+import { listTaskHistory } from '../services/task/task.service.js';
+import { detectSensitiveEntities } from '../services/ai/ai-detect.service.js';
+import { loadModelManifest } from '../services/ai/model-manifest.service.js';
+import {
+  broadcastAiDownloadProgress,
+  cancelModelDownload,
+  deleteInstalledModel,
+  downloadModel,
+  downloadRecommendedModel,
+  getAiStatus,
+  setAiDownloadProgressSink,
+} from '../services/ai/model-manager.service.js';
 
 class IpcModule implements AppModule {
   async enable({ app }: ModuleContext): Promise<void> {
@@ -213,6 +226,38 @@ class IpcModule implements AppModule {
 
     ipcMain.handle('shell:show-item-in-folder', async (_, filePath: string) => {
       shell.showItemInFolder(filePath);
+    });
+
+    setAiDownloadProgressSink((progress: AiDownloadProgress) => {
+      broadcastAiDownloadProgress(BrowserWindow.getAllWindows(), progress);
+    });
+
+    ipcMain.handle('ai:get-status', async () => await getAiStatus());
+
+    ipcMain.handle('ai:fetch-manifest', async () => await loadModelManifest(true));
+
+    ipcMain.handle('ai:download-model', async (_, modelId?: string) => {
+      if (modelId) {
+        const manifest = await loadModelManifest();
+        const entry = manifest.models.find((m) => m.id === modelId);
+        if (!entry) {
+          throw new Error(`未知模型: ${modelId}`);
+        }
+        return await downloadModel(modelId, entry);
+      }
+      return await downloadRecommendedModel();
+    });
+
+    ipcMain.handle('ai:cancel-download', async () => {
+      await cancelModelDownload();
+    });
+
+    ipcMain.handle('ai:delete-model', async (_, modelId?: string) => {
+      await deleteInstalledModel(modelId);
+    });
+
+    ipcMain.handle('ai:detect-sensitive', async (_, payload: AiDetectPayload) => {
+      return await detectSensitiveEntities(payload.text);
     });
   }
 }

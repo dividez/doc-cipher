@@ -17,6 +17,18 @@ export default /** @type import('electron-builder').Configuration */
   },
   generateUpdatesFilesForAllChannels: true,
   asar: true,
+  asarUnpack: ['**/llama-runtime/**'],
+  extraResources: [
+    {
+      from: 'buildResources/llama-runtime',
+      to: 'llama-runtime',
+      filter: ['**/*'],
+    },
+    {
+      from: 'buildResources/default-model-manifest.json',
+      to: 'default-model-manifest.json',
+    },
+  ],
   mac: {
     icon: appIcon,
     category: 'public.app-category.productivity',

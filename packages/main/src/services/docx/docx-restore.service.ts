@@ -7,11 +7,11 @@ import type {
   RestoreDocxReportItem,
   RestoreDocxResult,
 } from '@app/shared';
-import { decryptMapping, sha256 } from './crypto.service.js';
+import { decryptMapping, sha256 } from '../crypto/crypto.service.js';
 import { shouldProcessPart } from './docx-parts.js';
 import { restoreXmlPart } from './docx-restore-xml.js';
-import { logger } from './log.service.js';
-import { createTaskContext, writeTaskLog, writeTaskManifest } from './task.service.js';
+import { logger } from '../app/log.service.js';
+import { createTaskContext, writeTaskLog, writeTaskManifest } from '../task/task.service.js';
 
 export async function restoreDocx(payload: RestoreDocxPayload): Promise<RestoreDocxResult> {
   const task = await createTaskContext({

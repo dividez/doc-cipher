@@ -2,7 +2,7 @@ import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import { appendFile } from 'node:fs/promises';
 import { basename, dirname, extname, join } from 'node:path';
 import type { MappingItem, MaskingRule, TaskHistoryEntry } from '@app/shared';
-import { ensureAppStorageDirs } from './app-paths.service.js';
+import { ensureAppStorageDirs } from '../app/app-paths.service.js';
 
 export type TaskKind = 'mask' | 'restore';
 export type TaskStatus = 'running' | 'success' | 'failed';

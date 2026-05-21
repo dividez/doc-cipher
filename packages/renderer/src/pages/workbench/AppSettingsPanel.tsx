@@ -1,5 +1,11 @@
 import { ChevronDown, ChevronRight, FolderOpen, RefreshCw, Save } from 'lucide-react';
-import type { Settings as AppSettings, AppSettingsConfig, MaskingRule } from '@app/shared';
+import type {
+  AiAssistSettings,
+  Settings as AppSettings,
+  AppSettingsConfig,
+  MaskingRule,
+} from '@app/shared';
+import { AiAssistSection } from './AiAssistSection.js';
 import type { AppStoragePathsInfo } from '../../lib/local-api.js';
 import { Button, Card, Input, Label, Textarea, cn } from '../../components/ui.js';
 import { Field, PanelHero, RuleDetail } from './workbench-ui.js';
@@ -26,6 +32,7 @@ export function AppSettingsPanel({
   onSettingsTextChange,
   onReload,
   onSave,
+  onNotice,
 }: {
   settings: AppSettings;
   storagePaths: AppStoragePathsInfo | null;
@@ -47,6 +54,7 @@ export function AppSettingsPanel({
   onSettingsTextChange: (text: string) => void;
   onReload: () => void;
   onSave: () => void;
+  onNotice: (type: 'success' | 'error' | 'info', text: string) => void;
 }) {
   const app = settings.app;
 
@@ -121,6 +129,16 @@ export function AppSettingsPanel({
           </li>
         </ul>
       </Card>
+
+      <AiAssistSection
+        aiAssist={app.ai_assist}
+        onUpdateAiAssist={(patch: Partial<AiAssistSettings>) =>
+          onUpdateAppConfig({
+            ai_assist: { ...app.ai_assist, ...patch },
+          })
+        }
+        onNotice={onNotice}
+      />
 
       <Card className="app-settings-card">
         <div className="section-head">
