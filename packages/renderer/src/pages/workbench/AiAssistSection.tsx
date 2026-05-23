@@ -1,5 +1,5 @@
-import { useCallback, useEffect, useState } from 'react';
-import { Loader2, Trash2 } from 'lucide-react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import { Trash2 } from 'lucide-react';
 import {
   formatModelHardwareLines,
   modelTierLabel,
@@ -9,7 +9,8 @@ import {
   type ManifestModelEntry,
 } from '@app/shared';
 import { Button, Card, cn } from '../../components/ui.js';
-import { Field } from './workbench-ui.js';
+import { TipsButton } from '../../components/TipsButton.js';
+import { Field, SectionHead } from './workbench-ui.js';
 import { formatError } from './workbench-utils.js';
 import { getLocalApi, isLocalApiReady } from '../../lib/local-api.js';
 
@@ -23,24 +24,32 @@ function formatBytes(bytes: number): string {
   return `${Math.max(0, Math.round(bytes / 1024))} KB`;
 }
 
+type ModelInstallState = 'not_installed' | 'installed' | 'active';
+
 function ModelCatalogCard({
   entry,
+  installState,
   isRecommended,
-  isActive,
   downloadingModelId,
   progress,
   downloadLocked,
+  actionBusy,
   onDownload,
   onCancel,
+  onSetActive,
+  onDelete,
 }: {
   entry: ManifestModelEntry;
+  installState: ModelInstallState;
   isRecommended: boolean;
-  isActive: boolean;
   downloadingModelId: string | null;
   progress: AiDownloadProgress | null;
   downloadLocked: boolean;
+  actionBusy: boolean;
   onDownload: (modelId: string) => void;
   onCancel: () => void;
+  onSetActive: (modelId: string) => void;
+  onDelete: (modelId: string) => void;
 }) {
   const isDownloading = downloadingModelId === entry.id;
   const progressBytes = isDownloading && progress?.model_id === entry.id ? progress.bytes_done : 0;
@@ -51,14 +60,27 @@ function ModelCatalogCard({
   const hardwareLines = formatModelHardwareLines(entry);
   const tier = modelTierLabel(entry.tier);
 
+  const stateBadge =
+    installState === 'active' ? (
+      <span className="ai-model-badge ai-model-badge-active">当前模型</span>
+    ) : installState === 'installed' ? (
+      <span className="ai-model-badge ai-model-badge-muted">已安装</span>
+    ) : null;
+
   return (
-    <li className={cn('ai-model-card', isActive && 'ai-model-card-active')}>
+    <li
+      className={cn(
+        'ai-model-card',
+        installState === 'active' && 'ai-model-card-active',
+        installState === 'installed' && 'ai-model-card-installed',
+      )}
+    >
       <div className="ai-model-card-head">
         <div>
           <strong>{entry.name}</strong>
           {isRecommended ? <span className="ai-model-badge">推荐</span> : null}
           {tier ? <span className="ai-model-badge ai-model-badge-muted">{tier}</span> : null}
-          {isActive ? <span className="ai-model-badge ai-model-badge-active">已安装</span> : null}
+          {stateBadge}
         </div>
         <span className="section-meta">{formatBytes(entry.size_bytes)}</span>
       </div>
@@ -84,14 +106,38 @@ function ModelCatalogCard({
           </Button>
         </div>
       ) : (
-        <Button
-          type="button"
-          variant={isRecommended ? 'default' : 'outline'}
-          onClick={() => onDownload(entry.id)}
-          disabled={(downloadLocked && !isDownloading) || isActive}
-        >
-          {isActive ? '已安装' : isRecommended ? '下载推荐模型' : '下载此模型'}
-        </Button>
+        <div className="ai-model-card-actions">
+          {installState === 'not_installed' ? (
+            <Button
+              type="button"
+              variant={isRecommended ? 'default' : 'outline'}
+              onClick={() => onDownload(entry.id)}
+              disabled={downloadLocked || actionBusy}
+            >
+              下载
+            </Button>
+          ) : null}
+          {installState === 'installed' ? (
+            <Button
+              type="button"
+              variant="default"
+              onClick={() => onSetActive(entry.id)}
+              disabled={actionBusy}
+            >
+              设为当前
+            </Button>
+          ) : null}
+          {installState !== 'not_installed' ? (
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => onDelete(entry.id)}
+              disabled={actionBusy || downloadLocked}
+            >
+              <Trash2 size={16} /> 删除
+            </Button>
+          ) : null}
+        </div>
       )}
     </li>
   );
@@ -145,6 +191,11 @@ export function AiAssistSection({
   }, [refreshStatus]);
 
   const models = status?.available_models ?? [];
+  const installedIds = useMemo(
+    () => new Set((status?.installed_models ?? []).map((m) => m.id)),
+    [status?.installed_models],
+  );
+  const activeModelId = status?.active_model_id ?? null;
   const downloadingModelId =
     activeDownloadId ??
     (progress?.status === 'downloading' || progress?.status === 'verifying'
@@ -157,9 +208,17 @@ export function AiAssistSection({
     ? models.find((m) => m.id === downloadingModelId)
     : null;
   const downloadLocked = Boolean(downloadingModelId);
-  const installed = status?.model_installed ?? false;
-  const canEnable = installed;
-  const activeModelId = status?.active_model_id;
+  const canTuneThreshold = installedIds.size > 0;
+
+  const resolveInstallState = (modelId: string): ModelInstallState => {
+    if (activeModelId === modelId) {
+      return 'active';
+    }
+    if (installedIds.has(modelId)) {
+      return 'installed';
+    }
+    return 'not_installed';
+  };
 
   const handleDownload = (modelId: string) => {
     if (!isLocalApiReady() || downloadLocked) {
@@ -199,32 +258,60 @@ export function AiAssistSection({
     })();
   };
 
-  const handleDelete = async () => {
+  const handleSetActive = (modelId: string) => {
     if (!isLocalApiReady()) {
       return;
     }
-    if (!window.confirm('确定删除本地模型？删除后需重新下载才能使用 AI 辅助脱敏。')) {
+    setBusy(true);
+    void (async () => {
+      try {
+        await getLocalApi().setActiveAiModel(modelId);
+        const name = models.find((m) => m.id === modelId)?.name ?? modelId;
+        onNotice('success', `已将「${name}」设为当前模型`);
+        await refreshStatus();
+      } catch (error) {
+        onNotice('error', formatError(error));
+      } finally {
+        setBusy(false);
+      }
+    })();
+  };
+
+  const handleDelete = (modelId: string) => {
+    if (!isLocalApiReady()) {
+      return;
+    }
+    const entry = models.find((m) => m.id === modelId);
+    const label = entry?.name ?? modelId;
+    if (!window.confirm(`确定删除本地模型「${label}」？删除后需重新下载才能用于识别。`)) {
       return;
     }
     setBusy(true);
-    try {
-      await getLocalApi().deleteAiModel();
-      onUpdateAiAssist({ enabled: false });
-      onNotice('success', '本地模型已删除');
-      await refreshStatus();
-    } catch (error) {
-      onNotice('error', formatError(error));
-    } finally {
-      setBusy(false);
-    }
+    void (async () => {
+      try {
+        await getLocalApi().deleteAiModel(modelId);
+        onNotice('success', '模型已删除');
+        await refreshStatus();
+      } catch (error) {
+        onNotice('error', formatError(error));
+      } finally {
+        setBusy(false);
+      }
+    })();
   };
 
   return (
     <Card className="app-settings-card">
-      <div className="section-head">
-        <h3>AI 辅助脱敏</h3>
-        <span className="section-meta">本地推理，文档不上传云端</span>
-      </div>
+      <SectionHead
+        title="本地 AI 模型"
+        meta="本地推理"
+        tips={
+          <p>
+            可安装多个模型，在卡片上点「设为当前」选择脱敏时使用的模型。脱敏页使用「AI
+            辅助识别」；正式脱敏不调用模型。
+          </p>
+        }
+      />
 
       {status?.manifest_error ? (
         <p className="app-settings-hint ai-hint-error">
@@ -232,160 +319,91 @@ export function AiAssistSection({
         </p>
       ) : null}
 
-      {!installed ? (
-        <>
-          <p className="app-settings-hint">
-            请先下载下方模型。下载完成后，打开「启用 AI
-            辅助脱敏」即可使用；识别在本地进行，文档不会上传云端。
-          </p>
-          {downloadLocked && downloadingEntry ? (
-            <div className="ai-download-banner">
-              <span>
-                正在下载：{downloadingEntry.name}（
-                {progress?.status === 'verifying' ? '校验中…' : '下载中…'}）
-              </span>
-              <Button type="button" variant="outline" onClick={handleCancel}>
-                取消下载
-              </Button>
+      {installedIds.size > 0 ? (
+        <ul className="app-settings-list">
+          <li className="app-settings-row app-settings-row-stack">
+            <div className="app-settings-copy">
+              <strong>当前使用模型</strong>
+              <span>{status?.active_model_name ?? '未选择'}</span>
             </div>
-          ) : null}
-          {models.length > 0 ? (
-            <ul className="ai-model-catalog">
-              {models.map((entry) => (
-                <ModelCatalogCard
-                  key={entry.id}
-                  entry={entry}
-                  isRecommended={entry.recommended}
-                  isActive={false}
-                  downloadingModelId={downloadingModelId}
-                  progress={progress}
-                  downloadLocked={downloadLocked}
-                  onDownload={handleDownload}
-                  onCancel={handleCancel}
-                />
-              ))}
-            </ul>
-          ) : (
-            <p className="app-settings-hint">暂时无法显示可下载模型，请重启应用后重试。</p>
-          )}
-        </>
-      ) : (
-        <>
-          <ul className="app-settings-list">
+          </li>
+          <li className="app-settings-row">
+            <div className="app-settings-copy">
+              <strong>已安装</strong>
+              <span>{installedIds.size} 个</span>
+            </div>
+          </li>
+          {installedIds.size >= 2 ? (
             <li className="app-settings-row app-settings-row-stack">
-              <div className="app-settings-copy">
-                <strong>当前模型</strong>
-                <span>{status?.active_model_name ?? '已安装'}</span>
-              </div>
+              <p className="app-settings-hint">
+                已安装多个模型，在下方卡片点「设为当前」即可更换当前模型。
+              </p>
             </li>
-            <li className="app-settings-row">
-              <div className="app-settings-copy">
-                <strong>运行方式</strong>
-                <span>本地推理</span>
-              </div>
-              <span className="section-meta">
-                {status?.server_running ? '正在运行' : '待命中时自动启动'}
-              </span>
-            </li>
-          </ul>
-
-          {activeModelId
-            ? (() => {
-                const activeEntry = models.find((m) => m.id === activeModelId);
-                const hwLines = activeEntry ? formatModelHardwareLines(activeEntry) : [];
-                return hwLines.length > 0 ? (
-                  <ul className="ai-model-hardware ai-model-hardware-compact">
-                    {hwLines.map((line) => (
-                      <li key={line}>{line}</li>
-                    ))}
-                  </ul>
-                ) : null;
-              })()
-            : null}
-
-          {installed ? (
-            <p className="app-settings-hint">
-              模型已就绪。打开下方「启用 AI 辅助脱敏」即可在脱敏时使用本地识别。
-            </p>
           ) : null}
+        </ul>
+      ) : null}
 
-          <ul className="app-settings-list">
-            <li className="app-settings-row">
-              <div className="app-settings-copy">
-                <strong>启用 AI 辅助脱敏</strong>
-                <span>与规则脱敏同时生效，自动识别并替换敏感信息</span>
-              </div>
-              <button
-                type="button"
-                className={cn('rule-toggle', aiAssist.enabled && canEnable && 'rule-toggle-on')}
-                disabled={!canEnable}
-                onClick={() => onUpdateAiAssist({ enabled: !aiAssist.enabled })}
-              >
-                {aiAssist.enabled && canEnable ? '已启用' : '已停用'}
-              </button>
-            </li>
-          </ul>
+      {status && !status.runtime_available ? (
+        <p className="app-settings-hint ai-hint-error">未检测到 llama 运行时</p>
+      ) : null}
 
-          <Field label={`置信度阈值：${aiAssist.confidence_threshold.toFixed(2)}`}>
-            <input
-              type="range"
-              min={0.5}
-              max={0.95}
-              step={0.05}
-              value={aiAssist.confidence_threshold}
-              onChange={(event) =>
-                onUpdateAiAssist({ confidence_threshold: Number(event.target.value) })
-              }
-              disabled={!canEnable}
+      {downloadLocked && downloadingEntry ? (
+        <div className="ai-download-banner">
+          <span>
+            正在下载：{downloadingEntry.name}（
+            {progress?.status === 'verifying' ? '校验中…' : '下载中…'}）
+          </span>
+          <Button type="button" variant="outline" onClick={handleCancel}>
+            取消下载
+          </Button>
+        </div>
+      ) : null}
+
+      {models.length > 0 ? (
+        <ul className="ai-model-catalog">
+          {models.map((entry) => (
+            <ModelCatalogCard
+              key={entry.id}
+              entry={entry}
+              installState={resolveInstallState(entry.id)}
+              isRecommended={entry.recommended}
+              downloadingModelId={downloadingModelId}
+              progress={progress}
+              downloadLocked={downloadLocked}
+              actionBusy={busy}
+              onDownload={handleDownload}
+              onCancel={handleCancel}
+              onSetActive={handleSetActive}
+              onDelete={handleDelete}
             />
-          </Field>
-
-          <div className="profile-actions profile-actions-wrap">
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => void handleDelete()}
-              disabled={busy}
-            >
-              <Trash2 size={16} /> 删除当前模型
-            </Button>
-          </div>
-
-          {models.filter((m) => m.id !== activeModelId).length > 0 ? (
-            <>
-              {downloadLocked && downloadingEntry ? (
-                <div className="ai-download-banner">
-                  <span>
-                    正在下载：{downloadingEntry.name}（
-                    {progress?.status === 'verifying' ? '校验中…' : '下载中…'}）
-                  </span>
-                  <Button type="button" variant="outline" onClick={handleCancel}>
-                    取消下载
-                  </Button>
-                </div>
-              ) : null}
-              <p className="app-settings-hint">更换模型需先删除当前模型，再下载其他备选：</p>
-              <ul className="ai-model-catalog">
-                {models
-                  .filter((m) => m.id !== activeModelId)
-                  .map((entry) => (
-                    <ModelCatalogCard
-                      key={entry.id}
-                      entry={entry}
-                      isRecommended={entry.recommended}
-                      isActive={false}
-                      downloadingModelId={downloadingModelId}
-                      progress={progress}
-                      downloadLocked={downloadLocked}
-                      onDownload={handleDownload}
-                      onCancel={handleCancel}
-                    />
-                  ))}
-              </ul>
-            </>
-          ) : null}
-        </>
+          ))}
+        </ul>
+      ) : (
+        <p className="app-settings-hint">暂时无法显示可下载模型，请重启应用后重试。</p>
       )}
+
+      <Field
+        label={
+          <span className="field-label-with-tips">
+            置信度阈值：{aiAssist.confidence_threshold.toFixed(2)}
+            <TipsButton label="置信度说明">
+              <p>高于此值的 AI 实体才会写入识别结果，可在下载模型后调整。</p>
+            </TipsButton>
+          </span>
+        }
+      >
+        <input
+          type="range"
+          min={0.5}
+          max={0.95}
+          step={0.05}
+          value={aiAssist.confidence_threshold}
+          onChange={(event) =>
+            onUpdateAiAssist({ confidence_threshold: Number(event.target.value) })
+          }
+          disabled={!canTuneThreshold}
+        />
+      </Field>
     </Card>
   );
 }

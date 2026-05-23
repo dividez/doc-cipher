@@ -47,7 +47,11 @@ const rendererWatchServerProvider = {
  * For each of them, we add a plugin provider so that each package can implement its own hot update mechanism.
  */
 
-execSync('pnpm gen:build-info', { stdio: 'inherit', cwd: path.resolve('.') });
+execSync('pnpm gen:build-info', {
+  stdio: 'inherit',
+  cwd: path.resolve('.'),
+  env: { ...process.env, DOCIPHER_BUNDLE_LLAMA: process.env.DOCIPHER_BUNDLE_LLAMA ?? '1' },
+});
 
 /** @type {string[]} */
 const packagesToStart = ['packages/shared', 'packages/preload', 'packages/main'];

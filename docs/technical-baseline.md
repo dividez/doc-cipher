@@ -78,7 +78,7 @@ IPC 白名单包括文件选择、设置读写、脱敏、还原和日志读取�
 
 ```txt
 Renderer: docx-preview 只读版式预览 + 划词采集手动词
-Main:     docx:read-file → 二进制；docx:mask → OOXML 脱敏；docx:preview-matches → 命中扫描
+Main:     docx:read-file → 二进制；docx:recognize-matches → 识别；docx:mask → OOXML 脱敏（recognizedHits 快照）
 ```
 
 - IPC `docx:read-file`：校验 `.docx` 存在，返回 base64，不解析内容。

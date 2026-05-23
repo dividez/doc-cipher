@@ -2,10 +2,14 @@ import type {
   AiDetectPayload,
   AiDetectResult,
   AiDownloadProgress,
+  AiInferenceEstimate,
+  AiInferenceEstimatePayload,
+  AiMaskProgress,
+  AiRecognizeLogEvent,
   AiStatus,
   AppLogEntry,
-  DocxMatchPreviewPayload,
   DocxMatchPreviewResult,
+  DocxRecognizeMatchesPayload,
   DocxReadFilePayload,
   DocxReadFileResult,
   InstalledModel,
@@ -56,11 +60,12 @@ export type LocalApi = {
   importMaskProfile: () => Promise<MaskProfile | null>;
   readLogs: () => Promise<AppLogEntry[]>;
   showItemInFolder: (filePath: string) => Promise<void>;
-  previewDocxMatches: (payload: DocxMatchPreviewPayload) => Promise<DocxMatchPreviewResult>;
+  recognizeDocxMatches: (payload: DocxRecognizeMatchesPayload) => Promise<DocxMatchPreviewResult>;
   listTaskHistory: (limit?: number) => Promise<TaskHistoryEntry[]>;
   getStoragePaths: () => Promise<AppStoragePathsInfo>;
   openAppDataDir: () => Promise<void>;
   openUserDataDir: () => Promise<void>;
+  openExternalUrl: (url: string) => Promise<void>;
   pickUserDataDir: () => Promise<{ path: string; needsRestart: boolean } | null>;
   resetUserDataDir: () => Promise<{ path: string; needsRestart: boolean }>;
   relaunchApp: () => Promise<void>;
@@ -69,8 +74,13 @@ export type LocalApi = {
   downloadAiModel: (modelId?: string) => Promise<InstalledModel>;
   cancelAiDownload: () => Promise<void>;
   deleteAiModel: (modelId?: string) => Promise<void>;
+  setActiveAiModel: (modelId: string) => Promise<void>;
   detectSensitive: (payload: AiDetectPayload) => Promise<AiDetectResult>;
+  estimateAiInference: (payload: AiInferenceEstimatePayload) => Promise<AiInferenceEstimate>;
+  cancelAiMask: () => Promise<void>;
   onAiDownloadProgress: (callback: (progress: AiDownloadProgress) => void) => () => void;
+  onAiMaskProgress: (callback: (progress: AiMaskProgress) => void) => () => void;
+  onAiRecognizeLog: (callback: (event: AiRecognizeLogEvent) => void) => () => void;
   onNavigate: (callback: (view: string) => void) => () => void;
 };
 
@@ -87,7 +97,7 @@ export function isLocalApiReady(): boolean {
     typeof api.selectDocx === 'function' &&
     typeof api.readDocxFile === 'function' &&
     typeof api.listMaskProfiles === 'function' &&
-    typeof api.previewDocxMatches === 'function' &&
+    typeof api.recognizeDocxMatches === 'function' &&
     typeof api.listTaskHistory === 'function' &&
     typeof api.readLogs === 'function' &&
     typeof api.readSettings === 'function'

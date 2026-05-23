@@ -161,6 +161,10 @@ export function ruleTypeLabel(rule: MaskingRule): string {
   return '手动项';
 }
 
+export function taskKeywordSourceLabel(source?: ManualKeyword['source']): string {
+  return source === 'ai' ? 'AI' : '划词';
+}
+
 export function getDroppedPath(file: File, getPathForFile: (file: File) => string): string | null {
   const path = getPathForFile(file).trim();
   return path.length > 0 ? path : null;

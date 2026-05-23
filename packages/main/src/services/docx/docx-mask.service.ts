@@ -4,6 +4,7 @@ import type { Document as XmlDocument, Element as XmlElement } from '@xmldom/xml
 import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import { basename, extname, join } from 'node:path';
 import type {
+  DocxMatchHit,
   MappingItem,
   MaskDocxPayload,
   MaskDocxResult,
@@ -22,6 +23,7 @@ import {
   writeTaskManifest,
 } from '../task/task.service.js';
 import { selectNonOverlappingMatches } from './match-overlap.js';
+import { emitAiMaskProgress, endMaskTask, beginMaskTask } from '../ai/ai-mask-task.service.js';
 import { collectParagraphMatches, resetAiParagraphBudget } from './paragraph-matches.service.js';
 
 type TextNodeRef = {
@@ -46,6 +48,12 @@ export async function maskDocx(payload: MaskDocxPayload): Promise<MaskDocxResult
   const settings = settingsSchema.parse(payload.settings);
   resetAiParagraphBudget();
   const inputPath = payload.inputPath;
+  const snapshotMode = payload.recognizedHits !== undefined;
+  const recognizedHits = payload.recognizedHits ?? [];
+
+  beginMaskTask();
+  emitAiMaskProgress({ doneWindows: 0, totalWindows: 1, phase: 'mask' });
+
   const task = await createTaskContext({
     kind: 'mask',
     sourcePath: inputPath,
@@ -78,7 +86,7 @@ export async function maskDocx(payload: MaskDocxPayload): Promise<MaskDocxResult
         settings,
         counters,
         manualKeywords,
-        payload.aiAssist,
+        snapshotMode ? recognizedHits : undefined,
       );
 
       if (matches.length > 0) {
@@ -154,7 +162,28 @@ export async function maskDocx(payload: MaskDocxPayload): Promise<MaskDocxResult
       error_message: message,
     });
     throw error;
+  } finally {
+    emitAiMaskProgress({ doneWindows: 1, totalWindows: 1, phase: 'mask' });
+    endMaskTask();
   }
+}
+
+function pendingFromRecognizedHits(
+  paragraphText: string,
+  partName: string,
+  blockIndex: number,
+  recognizedHits: DocxMatchHit[],
+): PendingMatch[] {
+  return recognizedHits
+    .filter((hit) => hit.partName === partName && hit.blockIndex === blockIndex)
+    .map((hit, index) => ({
+      start: hit.start,
+      end: hit.end,
+      original: paragraphText.slice(hit.start, hit.end),
+      ruleId: hit.ruleId,
+      order: index,
+    }))
+    .filter((match) => match.original.length > 0);
 }
 
 async function maskXmlPart(
@@ -163,7 +192,7 @@ async function maskXmlPart(
   settings: Settings,
   counters: Map<string, number>,
   manualKeywords: string[],
-  aiAssist?: boolean,
+  recognizedHits?: DocxMatchHit[],
 ): Promise<{ updatedXml: string; matches: Match[] }> {
   const parser = new DOMParser({
     onError: (level, message) => {
@@ -185,9 +214,14 @@ async function maskXmlPart(
       continue;
     }
 
-    const selected = await collectParagraphMatches(paragraphText, settings, manualKeywords, {
-      aiAssist,
-    });
+    const selected =
+      recognizedHits !== undefined
+        ? selectMatches(
+            pendingFromRecognizedHits(paragraphText, partName, blockIndex, recognizedHits),
+          )
+        : await collectParagraphMatches(paragraphText, settings, manualKeywords, {
+            aiAssist: false,
+          });
     if (selected.length === 0) {
       continue;
     }

@@ -1,4 +1,5 @@
 import type { ReactNode } from 'react';
+import { TipsButton } from '../../components/TipsButton.js';
 import {
   Check,
   ChevronDown,
@@ -183,12 +184,43 @@ export function RuleDetail({ rule }: { rule: MaskingRule }) {
   );
 }
 
-export function PanelHero({ title, description }: { title: string; description: string }) {
+export function PanelHero({
+  title,
+  description,
+  tips,
+}: {
+  title: string;
+  description?: string;
+  tips?: ReactNode;
+}) {
   return (
     <header className="panel-hero">
-      <h2>{title}</h2>
-      <p>{description}</p>
+      <div className="panel-hero-title">
+        <h2>{title}</h2>
+        {tips ? <TipsButton label="脱敏任务说明">{tips}</TipsButton> : null}
+      </div>
+      {description ? <p>{description}</p> : null}
     </header>
+  );
+}
+
+export function SectionHead({
+  title,
+  meta,
+  tips,
+}: {
+  title: string;
+  meta?: ReactNode;
+  tips?: ReactNode;
+}) {
+  return (
+    <div className="section-head">
+      <div className="section-head-title">
+        <h3>{title}</h3>
+        {tips ? <TipsButton label={`${title}说明`}>{tips}</TipsButton> : null}
+      </div>
+      {meta !== undefined && meta !== null ? <span className="section-meta">{meta}</span> : null}
+    </div>
   );
 }
 
@@ -215,7 +247,7 @@ export function PathField({
   );
 }
 
-export function Field({ label, children }: { label: string; children: React.ReactNode }) {
+export function Field({ label, children }: { label: ReactNode; children: React.ReactNode }) {
   return (
     <div className="field">
       <Label>{label}</Label>

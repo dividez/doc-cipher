@@ -21,6 +21,17 @@ describe('buildPreviewHighlightTerms', () => {
     assert.ok(terms.some((t) => t.kind === 'profile' && t.text === '乙'));
     assert.ok(!terms.some((t) => t.kind === 'system'));
   });
+
+  it('includes recognized texts when provided', () => {
+    const terms = buildPreviewHighlightTerms({
+      manual: [],
+      profile: [],
+      system: [],
+      systemEnabled: true,
+      recognized: ['识别词'],
+    });
+    assert.ok(terms.some((t) => t.kind === 'recognized' && t.text === '识别词'));
+  });
 });
 
 describe('mergeHighlightRanges', () => {

@@ -43,12 +43,15 @@ jobs:
           - name: windows-x64
             runner: windows-latest
             builder_args: --win nsis zip --x64
+            llama_key: win32-x64
           - name: macos-x64
             runner: macos-15-intel
             builder_args: --mac dmg zip --x64
+            llama_key: darwin-x64
           - name: macos-arm64
             runner: macos-latest
             builder_args: --mac dmg zip --arm64
+            llama_key: darwin-arm64
 
     steps:
       - name: Checkout
@@ -72,17 +75,31 @@ jobs:
           VERSION="${RELEASE_TAG#v}"
           npm version "$VERSION" --no-git-tag-version --allow-same-version
 
-      - name: Generate build info
+      - name: Build and package core (no AI runtime)
         env:
+          DOCIPHER_BUNDLE_LLAMA: '0'
           RELEASE_TAG: ${{ env.RELEASE_TAG }}
           GITHUB_SHA: ${{ github.sha }}
-        run: pnpm gen:build-info
+        run: |
+          pnpm gen:build-info
+          pnpm build
+          pnpm exec electron-builder --config electron-builder.mjs ${{ matrix.builder_args }} --publish never
 
-      - name: Build packages
-        run: pnpm build
+      - name: Fetch llama runtime for AI build
+        env:
+          LLAMA_RUNTIME_PLATFORMS: ${{ matrix.llama_key }}
+        run: pnpm fetch:llama-runtime
 
-      - name: Package installer
-        run: pnpm exec electron-builder --config electron-builder.mjs ${{ matrix.builder_args }} --publish never
+      - name: Build and package AI edition
+        env:
+          DOCIPHER_BUNDLE_LLAMA: '1'
+          LLAMA_RUNTIME_PLATFORMS: ${{ matrix.llama_key }}
+          RELEASE_TAG: ${{ env.RELEASE_TAG }}
+          GITHUB_SHA: ${{ github.sha }}
+        run: |
+          pnpm gen:build-info
+          pnpm build
+          pnpm exec electron-builder --config electron-builder.mjs ${{ matrix.builder_args }} --publish never
 
       - name: Upload workflow artifact
         uses: actions/upload-artifact@v7

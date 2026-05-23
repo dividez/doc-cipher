@@ -32,6 +32,18 @@ export function parseEntitiesFromContent(content: string): AiDetectEntity[] {
   return entities;
 }
 
+export function mergeAiDetectEntities(entities: AiDetectEntity[]): AiDetectEntity[] {
+  const merged = new Map<string, AiDetectEntity>();
+  for (const entity of entities) {
+    const key = `${entity.type}\u0000${entity.text}`;
+    const existing = merged.get(key);
+    if (!existing || entity.confidence > existing.confidence) {
+      merged.set(key, entity);
+    }
+  }
+  return [...merged.values()];
+}
+
 export function entitiesToPendingMatches(
   paragraphText: string,
   entities: AiDetectEntity[],

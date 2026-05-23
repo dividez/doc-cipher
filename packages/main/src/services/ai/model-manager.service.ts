@@ -20,7 +20,11 @@ import {
 } from '../app/app-paths.service.js';
 import { sha256 } from '../crypto/crypto.service.js';
 import { loadModelManifest, getRecommendedModel } from './model-manifest.service.js';
-import { isLlamaRuntimeAvailable, isLlamaServerRunning } from './llama-runtime.service.js';
+import {
+  isLlamaRuntimeAvailable,
+  isLlamaServerRunning,
+  stopLlamaServer,
+} from './llama-runtime.service.js';
 import { logger } from '../app/log.service.js';
 
 let downloadAbort: AbortController | null = null;
@@ -229,15 +233,18 @@ export async function downloadModel(
       total_bytes: total,
       status: status === 'verifying' ? 'verifying' : 'downloading',
     });
-    void writeModelState({
-      ...state,
-      download_task: {
-        model_id: entry.id,
-        status,
-        bytes_done: bytesDone,
-        total_bytes: total,
-      },
-    });
+    void (async () => {
+      const current = await readModelState();
+      await writeModelState({
+        ...current,
+        download_task: {
+          model_id: entry.id,
+          status,
+          bytes_done: bytesDone,
+          total_bytes: total,
+        },
+      });
+    })();
   };
 
   try {
@@ -365,6 +372,23 @@ export async function cancelModelDownload(): Promise<void> {
   });
 }
 
+export async function setActiveModel(modelId: string): Promise<void> {
+  const state = await readModelState();
+  const target = state.installed.find((m) => m.id === modelId);
+  if (!target) {
+    throw new Error(`未安装模型: ${modelId}`);
+  }
+  if (state.active_model_id === modelId) {
+    return;
+  }
+  await writeModelState({
+    ...state,
+    active_model_id: modelId,
+  });
+  await stopLlamaServer();
+  logger().info(`Active model set: ${modelId}`);
+}
+
 export async function deleteInstalledModel(modelId?: string): Promise<void> {
   const state = await readModelState();
   const id = modelId ?? state.active_model_id;
@@ -403,6 +427,7 @@ export async function getAiStatus(): Promise<AiStatus> {
     active_model_id: state.active_model_id,
     active_model_name: active?.name ?? null,
     model_installed: state.installed.length > 0,
+    installed_models: state.installed,
     download_task: state.download_task,
     recommended_model: recommended,
     available_models: manifest?.models ?? [],

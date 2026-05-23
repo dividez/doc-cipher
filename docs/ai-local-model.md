@@ -1,81 +1,49 @@
-# 本地 AI 辅助脱敏（第一期）
+# 本地 AI 辅助脱敏
 
-## 架构
+> **安装包**：仅 **AI 版**（Release 资产名带 `-ai` 后缀）内置 llama 运行时与设置页「本地 AI 模型」。**精简版**无 AI 能力，界面不展示相关入口。
 
-- 安装包内置 **llama.cpp `llama-server`**（按平台），**不包含** GGUF 模型。
-- 用户从 manifest 下载推荐模型到 `{userDataDir}/doc-cipher/models/{modelId}/`。
-- 脱敏时 AI 仅识别敏感实体 span，与规则命中合并后走现有 token + `restore.enc` 流程。
+## 脱敏任务流程
 
-## 目录
+1. **配置**（脱敏页）：选择 docx、脱敏方案、划词备选词；在设置页下载模型并在卡片上点「设为当前」。
+2. **扫描文档**：规则、方案/系统关键词、备选词命中统计，不改写文件。
+3. **AI 辅助识别**（可选）：点击按钮即开始，按钮下显示窗口进度，可取消；敏感词写入备选列表。
+4. **开始脱敏**：填写还原密码后执行；按识别快照写 masked.docx 与 restore.enc（不再调用 llama）。
 
-| 路径                                                | 说明               |
-| --------------------------------------------------- | ------------------ |
-| `{userDataDir}/doc-cipher/models/{id}/model.gguf`   | 模型权重           |
-| `{userDataDir}/doc-cipher/models/{id}/model.json`   | 安装元数据         |
-| `{userDataDir}/doc-cipher/model-state.json`         | 本地注册与下载状态 |
-| `{userDataDir}/doc-cipher/downloads/*.part`         | 断点续传临时文件   |
-| `{resources}/llama-runtime/{platform}/llama-server` | 内置运行时         |
+## 多模型
 
-## Manifest
+- 在 **设置 → 本地 AI 模型** 可下载多个模型；已安装卡片上点 **设为当前** 选定当前模型（`active_model_id`），状态保存在 `model-state.json`。
+- 脱敏页不选择模型，仅使用设置页当前使用项。
 
-模型清单**仅本地加载**：开发时读 `buildResources/default-model-manifest.json`，安装后读应用包内 `resources/default-model-manifest.json`（由 electron-builder `extraResources` 打入）。不请求远程 URL。
+## 开发环境：llama 运行时
 
-字段：`id`, `name`, `download_url`（**GGUF 直链**）, `size_bytes`, `sha256`（可选）, `recommended`, `tier`（`light` / `balanced` / `quality`）, `hardware`（CPU/内存/磁盘/GPU 说明）。
-
-### 默认模型列表
-
-| ID                         | 定位          | 体积约  | 最低内存 |
-| -------------------------- | ------------- | ------- | -------- |
-| `qwen2.5-1.5b-instruct-q4` | 推荐 / 均衡   | ~1.0 GB | 8 GB     |
-| `qwen2.5-0.5b-instruct-q4` | 备选 / 轻量   | ~0.4 GB | 4 GB     |
-| `qwen2.5-3b-instruct-q4`   | 备选 / 高精度 | ~2.1 GB | 12 GB    |
-
-`hardware` 示例：
-
-```json
-"hardware": {
-  "min_memory_gb": 8,
-  "recommended_memory_gb": 12,
-  "min_cpu_cores": 4,
-  "disk_gb": 1.2,
-  "cpu": "x64 / Apple Silicon，4 核及以上",
-  "gpu": "非必需；16GB 统一内存体验更流畅",
-  "notes": "普通办公本可运行"
-}
-```
-
-## 打包
+AI 识别除 GGUF 外还需要 **llama-server** 二进制。开发时若未打包进应用，需先执行：
 
 ```bash
-pnpm fetch:llama-runtime   # 下载三平台 llama-server 到 buildResources/llama-runtime
-pnpm compile               # electron-builder 打入 extraResources
+pnpm fetch:llama-runtime
 ```
 
-支持平台：`darwin-arm64`, `darwin-x64`, `win32-x64`。Linux 客户端不启用本地推理。
+将 `llama-server` 与依赖库（`.dylib` / `.dll`）放入 `buildResources/llama-runtime/<平台>/`；macOS 会创建 `@rpath` 符号链接。更新时建议 `rm -rf buildResources/llama-runtime` 后重新执行。默认 tag `b9277`，可用 `LLAMA_RELEASE_TAG` 覆盖。
 
-## ModelScope 发布清单
+仅拉取当前平台（打包 AI 版时推荐）：
 
-1. 上传 GGUF 到 ModelScope 或 CDN，获取 **文件直链**（非模型页 URL）。
-2. 用 `sha256sum model.gguf` 计算校验值，写入 manifest。
-3. 更新 `size_bytes` 为实际字节数。
-4. 在测试机完成：下载 → 校验 → 启用 AI → 预览命中 → 正式脱敏。
+```bash
+LLAMA_RUNTIME_PLATFORMS=darwin-arm64 pnpm fetch:llama-runtime
+# 或 LLAMA_RUNTIME_ONLY=1（按 Node 所在 OS/arch 自动选择）
+```
 
-当前默认模型：`qwen2.5-1.5b-instruct-q4`（Qwen2.5-1.5B-Instruct Q4_K_M）。
+编译期开关 `DOCIPHER_BUNDLE_LLAMA=1` 时应用内 `BUILD_INFO.features.localAi` 为 true（`pnpm dev` 默认已启用）。
 
 ## IPC
 
-| Channel                | 说明                                       |
-| ---------------------- | ------------------------------------------ |
-| `ai:get-status`        | 运行时/模型/下载状态                       |
-| `ai:fetch-manifest`    | 重新读取内置 manifest（清内存缓存）        |
-| `ai:download-model`    | 下载模型（可选 `modelId`，缺省为推荐模型） |
-| `ai:cancel-download`   | 取消下载                                   |
-| `ai:delete-model`      | 删除本地模型                               |
-| `ai:detect-sensitive`  | 单段文本检测（调试）                       |
-| `ai:download-progress` | 下载进度事件                               |
+| Channel                  | 说明                                                              |
+| ------------------------ | ----------------------------------------------------------------- |
+| `docx:recognize-matches` | 扫描（`useLocalAi: false`）或 AI 补充（`aiSupplementOnly: true`） |
+| `docx:mask`              | 正式脱敏（`recognizedHits` 快照）                                 |
+| `ai:estimate-inference`  | 推理耗时预估                                                      |
+| `ai:cancel-mask`         | 取消 AI 识别                                                      |
+| `ai:set-active-model`    | 设置页切换当前使用模型                                            |
+| `ai:mask-progress`       | `phase: recognize \| mask`                                        |
 
 ## 设置
 
-`setting.json` → `app.ai_assist.enabled` / `confidence_threshold`（应用设置页）。
-
-预览时 AI 最多处理 **50** 个段落，避免大文档卡死；正式脱敏处理全部段落。
+`app.ai_assist.confidence_threshold` 控制 AI 置信度阈值。

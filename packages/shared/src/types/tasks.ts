@@ -16,9 +16,13 @@ export type DocxTextBlock = {
   structure?: DocxStructureHint;
 };
 
+export type TaskKeywordSource = 'manual' | 'ai';
+
 export type ManualKeyword = {
   id: string;
   text: string;
+  /** 划词为 manual；本地 AI 识别写入为 ai */
+  source?: TaskKeywordSource;
 };
 
 export type DocxReadFilePayload = {
@@ -35,7 +39,17 @@ export type MaskDocxPayload = {
   password: string;
   settings?: Settings;
   manualKeywords?: string[];
-  aiAssist?: boolean;
+  /** 识别阶段快照；正式脱敏仅应用此列表（不传则仅规则+手动词） */
+  recognizedHits?: DocxMatchHit[];
+};
+
+export type DocxRecognizeMatchesPayload = {
+  filePath: string;
+  settings: Settings;
+  manualKeywords?: string[];
+  useLocalAi?: boolean;
+  /** 仅 AI 滑窗补充识别，不重复规则扫描 */
+  aiSupplementOnly?: boolean;
 };
 
 export type MaskDocxResult = {
@@ -113,6 +127,8 @@ export type DocxMatchHit = {
   end: number;
   ruleId: string;
   kind: DocxMatchHitKind;
+  /** 命中原文，供文档预览高亮 */
+  text?: string;
 };
 
 export type DocxMatchRuleHit = {
@@ -144,13 +160,6 @@ export type DocxMatchPreviewResult = {
   hits: DocxMatchHit[];
   zeroHitRules: DocxZeroHitRule[];
   samples: DocxMatchPreviewSample[];
-};
-
-export type DocxMatchPreviewPayload = {
-  filePath: string;
-  settings: Settings;
-  manualKeywords?: string[];
-  aiAssist?: boolean;
 };
 
 export type TaskHistoryEntry = {

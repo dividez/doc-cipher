@@ -4,14 +4,17 @@ import {
   FolderOpen,
   Loader2,
   Save,
-  Search,
+  ScanSearch,
   ShieldCheck,
+  Sparkles,
   Trash2,
   Upload,
 } from 'lucide-react';
 import {
   PROFILE_KEYWORD_RULE_ID,
   SYSTEM_KEYWORD_RULE_ID,
+  type AiInferenceEstimate,
+  type AiMaskProgress,
   type DocxMatchPreviewResult,
   type KeywordRule,
   type ManualKeyword,
@@ -23,20 +26,39 @@ import type { PreviewHighlightTerm } from '../../lib/docx-preview-highlights.js'
 import { MatchPreviewDialog } from '../../components/MatchPreviewDialog.js';
 import { Button, Card, Input, cn } from '../../components/ui.js';
 import { DocxReviewPanel } from './DocxReviewPanel.js';
-import { Field, PanelHero, ResultFileRow } from './workbench-ui.js';
-import { fileName } from './workbench-utils.js';
+import { Field, PanelHero, ResultFileRow, SectionHead } from './workbench-ui.js';
+import { fileName, taskKeywordSourceLabel } from './workbench-utils.js';
+
+function formatEstimateRange(minSec: number, maxSec: number): string {
+  const format = (seconds: number) => {
+    if (seconds < 60) {
+      return `约 ${seconds} 秒`;
+    }
+    return `约 ${Math.max(1, Math.round(seconds / 60))} 分钟`;
+  };
+  if (minSec === maxSec) {
+    return format(minSec);
+  }
+  return `${format(minSec)}～${format(maxSec)}`;
+}
 
 export function MaskPanel({
   activeProfileId,
   busy,
+  maskBusyAction,
+  maskAiProgress,
   dragOver,
   enabledRules,
   form,
   manualKeywords,
   matchPreview,
   matchPreviewDialogOpen,
-  matchPreviewLoading,
   previewFilePath,
+  localAiEnabled,
+  aiReady,
+  aiBlockReason,
+  aiEstimate,
+  aiEstimateLoading,
   highlightTerms,
   highlightRevision,
   profiles,
@@ -56,9 +78,14 @@ export function MaskPanel({
   onOpenFolder,
   onPickDocx,
   onPickOutput,
-  onRun,
+  onRuleScan,
+  onAiRecognize,
+  onStartMask,
+  onCancelMask,
   onCloseMatchPreview,
-  onPreviewMatches,
+  onOpenMatchPreview,
+  onOpenSettings,
+  onConfirmMaskFromPreview,
   onSaveProfile,
   onSelectProfile,
   onGoRules,
@@ -66,14 +93,20 @@ export function MaskPanel({
 }: {
   activeProfileId: string;
   busy: boolean;
+  maskBusyAction: 'idle' | 'scan' | 'ai' | 'mask';
+  maskAiProgress: AiMaskProgress | null;
   dragOver: boolean;
   enabledRules: MaskingRule[];
   form: { inputPath: string; outputDir: string; password: string };
   manualKeywords: ManualKeyword[];
   matchPreview: DocxMatchPreviewResult | null;
   matchPreviewDialogOpen: boolean;
-  matchPreviewLoading: boolean;
   previewFilePath: string | null;
+  localAiEnabled: boolean;
+  aiReady: boolean;
+  aiBlockReason: string | null;
+  aiEstimate: AiInferenceEstimate | null;
+  aiEstimateLoading: boolean;
   highlightTerms: PreviewHighlightTerm[];
   highlightRevision: number;
   profiles: MaskProfile[];
@@ -95,15 +128,24 @@ export function MaskPanel({
   onOpenFolder: (path: string) => void;
   onPickDocx: () => void;
   onPickOutput: () => void;
-  onRun: () => void;
+  onRuleScan: () => void;
+  onAiRecognize: () => void;
+  onStartMask: () => void;
+  onCancelMask: () => void;
   onCloseMatchPreview: () => void;
-  onPreviewMatches: () => void;
+  onOpenMatchPreview: () => void;
+  onOpenSettings: () => void;
+  onConfirmMaskFromPreview: () => void;
   onSaveProfile: () => void;
   onSelectProfile: (profileId: string) => void;
   onGoRules: () => void;
   onReset: () => void;
 }) {
   const hasFile = !!form.inputPath;
+  const scanning = busy && maskBusyAction === 'scan';
+  const aiRecognizing = busy && maskBusyAction === 'ai';
+  const masking = busy && maskBusyAction === 'mask';
+
   const regexRules = useMemo(
     () =>
       enabledRules.filter(
@@ -131,14 +173,27 @@ export function MaskPanel({
       ) ?? null,
     [enabledRules],
   );
+
+  const manualPickCount = manualKeywords.filter((k) => k.source !== 'ai').length;
+  const aiPickCount = manualKeywords.filter((k) => k.source === 'ai').length;
+  const profileKeywordCount = profileKeywordRule?.keywords.length ?? 0;
+
+  const aiProgressPct =
+    maskAiProgress && maskAiProgress.totalWindows > 0
+      ? Math.min(100, Math.round((maskAiProgress.doneWindows / maskAiProgress.totalWindows) * 100))
+      : 0;
+
   return (
     <div className="panel-stack panel-stack-wide">
       <PanelHero
         title={hasFile ? fileName(form.inputPath) : '脱敏任务'}
-        description={
-          hasFile
-            ? '在版式预览中划词加入手动词，再配置密码并生成文件。'
-            : '请先选择或拖入 Word 文档。'
+        description={hasFile ? undefined : '选择或拖入 docx 文件'}
+        tips={
+          <p>
+            流程：扫描文档
+            {localAiEnabled ? ' → 可选 AI 辅助识别' : ''} → 确认备选词 → 开始脱敏。
+            {localAiEnabled ? '模型在「设置」中下载并设为当前。' : ''}
+          </p>
         }
       />
 
@@ -176,49 +231,20 @@ export function MaskPanel({
               open={matchPreviewDialogOpen}
               preview={matchPreview}
               systemKeywordsEnabled={systemKeywordsEnabled}
+              taskFlow
+              confirmBusy={masking}
+              onConfirmMask={onConfirmMaskFromPreview}
               onClose={onCloseMatchPreview}
             />
           )}
 
           <Card className="task-card task-card-sticky">
-            <div className="task-actions">
-              <Button type="button" onClick={onRun} disabled={busy}>
-                {busy ? <Loader2 className="spin" size={16} /> : <ShieldCheck size={16} />}
-                开始脱敏
-              </Button>
-              <Button type="button" variant="outline" onClick={onGoRules}>
-                方案管理
-              </Button>
-              <Button
-                type="button"
-                variant="outline"
-                onClick={onPreviewMatches}
-                disabled={matchPreviewLoading}
-                title={
-                  matchPreview
-                    ? `已预估 ${matchPreview.totalHits} 处，点击刷新并查看详情`
-                    : '统计脱敏前规则命中（不修改文件）'
-                }
-              >
-                {matchPreviewLoading ? (
-                  <Loader2 className="spin" size={16} />
-                ) : (
-                  <Search size={16} />
-                )}
-                命中预估
-              </Button>
-              {result && (
-                <Button type="button" variant="ghost" onClick={onReset}>
-                  重新选择
-                </Button>
-              )}
-            </div>
-
             <section className="profile-panel">
-              <div className="section-head">
-                <h3>脱敏方案</h3>
-                <span className="section-meta">{profiles.length} 个</span>
-              </div>
+              <SectionHead
+                title="脱敏方案"
+                meta={`${profiles.length} 个`}
+                tips={<p>选择或保存方案；正则与关键词在方案管理中配置。</p>}
+              />
               <select
                 className="profile-select"
                 value={activeProfileId}
@@ -238,22 +264,35 @@ export function MaskPanel({
                 <Button type="button" variant="outline" onClick={onSaveProfile}>
                   <Save size={16} /> 保存方案
                 </Button>
+                <Button type="button" variant="outline" onClick={onGoRules}>
+                  方案管理
+                </Button>
               </div>
             </section>
 
             <section className="manual-summary">
-              <div className="section-head">
-                <h3>手动词</h3>
-                <span className="section-meta">{manualKeywords.length} 项</span>
-              </div>
+              <SectionHead
+                title="备选词"
+                meta={`${manualKeywords.length} 项`}
+                tips={
+                  <p>
+                    左侧划词
+                    {localAiEnabled ? '或 AI 识别' : ''}
+                    写入此列表。删除的项不参与脱敏；保存方案时会写入方案关键词。
+                  </p>
+                }
+              />
               {manualKeywords.length > 0 ? (
                 <ul className="manual-list">
                   {manualKeywords.map((keyword) => (
                     <li key={keyword.id}>
+                      <span className="task-keyword-source">
+                        {taskKeywordSourceLabel(keyword.source)}
+                      </span>
                       <span title={keyword.text}>{keyword.text}</span>
                       <button
                         type="button"
-                        aria-label="移除手动词"
+                        aria-label="从备选列表移除"
                         onClick={() => onRemoveManualKeyword(keyword.id)}
                       >
                         <Trash2 size={14} />
@@ -262,15 +301,23 @@ export function MaskPanel({
                   ))}
                 </ul>
               ) : (
-                <p className="manual-empty">在左侧预览中划词后加入脱敏。</p>
+                <p className="manual-empty">暂无</p>
               )}
             </section>
 
             <section className="rules-summary">
-              <div className="section-head">
-                <h3>检测规则</h3>
-                <span className="section-meta">{enabledRules.length} 项已启用</span>
-              </div>
+              <SectionHead
+                title="检测规则"
+                meta={`${enabledRules.length} 项已启用`}
+                tips={
+                  <>
+                    <p>扫描与脱敏时应用已启用的正则、系统词、方案词。</p>
+                    {!systemKeywordsEnabled && systemKeywords.length > 0 ? (
+                      <p>系统关键词开关已关闭，不使用设置模板中的通用词。</p>
+                    ) : null}
+                  </>
+                }
+              />
               {regexRules.length > 0 && (
                 <ul className="rule-chips">
                   {regexRules.map((rule) => (
@@ -303,11 +350,133 @@ export function MaskPanel({
                   </li>
                 </ul>
               )}
-              {!systemKeywordsEnabled && systemKeywords.length > 0 && (
-                <p className="rules-summary-hint">
-                  系统关键词开关已关闭，脱敏时不应用模板中的通用关键词。
+            </section>
+
+            <section className="task-sources">
+              <SectionHead
+                title="敏感信息来源"
+                tips={
+                  <ul>
+                    <li>正则、方案/系统关键词：来自方案与设置</li>
+                    <li>{localAiEnabled ? '划词、AI：来自备选列表' : '划词：来自备选列表'}</li>
+                    <li>四类来源在扫描与脱敏时一并生效</li>
+                  </ul>
+                }
+              />
+              <ul className="task-sources-list">
+                <li>
+                  <span>正则</span>
+                  <span className="section-meta">{regexRules.length} 条启用</span>
+                </li>
+                <li>
+                  <span>方案/系统关键词</span>
+                  <span className="section-meta">
+                    方案 {profileKeywordCount} · 系统{' '}
+                    {systemKeywordsEnabled && systemKeywordRule ? systemKeywords.length : '关'}
+                  </span>
+                </li>
+                <li>
+                  <span>划词</span>
+                  <span className="section-meta">{manualPickCount} 项</span>
+                </li>
+                {localAiEnabled ? (
+                  <li>
+                    <span>AI 辅助识别</span>
+                    <span className="section-meta">{aiPickCount} 项</span>
+                  </li>
+                ) : null}
+              </ul>
+            </section>
+
+            <section className="task-steps">
+              <SectionHead
+                title="发现敏感信息"
+                tips={
+                  <ul>
+                    <li>扫描文档：规则与备选词，较快</li>
+                    {localAiEnabled ? (
+                      <>
+                        <li>AI 辅助识别：补充敏感词到备选列表，显示进度可取消</li>
+                        <li>须先在设置中配置并启用本地模型</li>
+                      </>
+                    ) : null}
+                  </ul>
+                }
+              />
+              <div className="task-step-actions">
+                <Button type="button" variant="outline" disabled={busy} onClick={onRuleScan}>
+                  {scanning ? <Loader2 className="spin" size={16} /> : <ScanSearch size={16} />}
+                  扫描文档
+                </Button>
+                {localAiEnabled ? (
+                  <div className="task-step-ai">
+                    <Button
+                      type="button"
+                      variant="default"
+                      disabled={busy || !aiReady}
+                      onClick={onAiRecognize}
+                    >
+                      {aiRecognizing ? (
+                        <Loader2 className="spin" size={16} />
+                      ) : (
+                        <Sparkles size={16} />
+                      )}
+                      AI 辅助识别
+                    </Button>
+                    {!aiReady ? (
+                      <>
+                        <Button type="button" variant="ghost" onClick={onOpenSettings}>
+                          去设置
+                        </Button>
+                        {aiBlockReason ? (
+                          <span className="section-meta task-step-ai-hint">{aiBlockReason}</span>
+                        ) : null}
+                      </>
+                    ) : null}
+                    {aiReady && aiEstimate && !aiRecognizing ? (
+                      <span className="section-meta task-step-estimate">
+                        {aiEstimateLoading
+                          ? '估算中…'
+                          : formatEstimateRange(
+                              aiEstimate.estimatedSecondsMin,
+                              aiEstimate.estimatedSecondsMax,
+                            )}
+                      </span>
+                    ) : null}
+                    {aiRecognizing && maskAiProgress && maskAiProgress.totalWindows > 0 ? (
+                      <div className="ai-mask-progress task-step-ai-progress">
+                        <div className="ai-progress-bar">
+                          <div
+                            className="ai-progress-fill"
+                            style={{ width: `${aiProgressPct}%` }}
+                          />
+                        </div>
+                        <span>
+                          识别中 {maskAiProgress.doneWindows} / {maskAiProgress.totalWindows} 窗口
+                        </span>
+                        <Button type="button" variant="outline" onClick={onCancelMask}>
+                          取消识别
+                        </Button>
+                      </div>
+                    ) : null}
+                  </div>
+                ) : null}
+              </div>
+              {scanning ? (
+                <p className="task-step-status">
+                  <Loader2 className="spin" size={14} /> 正在扫描文档…
                 </p>
-              )}
+              ) : null}
+              {matchPreview ? (
+                <Button
+                  type="button"
+                  variant="ghost"
+                  className="task-step-view-result"
+                  onClick={onOpenMatchPreview}
+                >
+                  查看识别结果（共 {matchPreview.totalHits} 处）
+                </Button>
+              ) : null}
             </section>
 
             <Field label="还原密码">
@@ -334,6 +503,45 @@ export function MaskPanel({
                 </Button>
               </div>
             </Field>
+
+            <section className="task-step-mask">
+              <SectionHead
+                title="正式脱敏"
+                tips={
+                  <p>
+                    须先完成扫描。填写还原密码后生成 masked.docx 与
+                    restore.enc；此步骤不再调用本地模型。
+                  </p>
+                }
+              />
+              <Button
+                type="button"
+                className="task-mask-primary"
+                disabled={busy || !matchPreview || !form.password.trim()}
+                title={
+                  !matchPreview
+                    ? '请先扫描文档'
+                    : !form.password.trim()
+                      ? '请填写还原密码'
+                      : undefined
+                }
+                onClick={onStartMask}
+              >
+                {masking ? <Loader2 className="spin" size={16} /> : <ShieldCheck size={16} />}
+                开始脱敏
+              </Button>
+              {masking && maskAiProgress?.phase === 'mask' ? (
+                <p className="task-step-status">
+                  <Loader2 className="spin" size={14} /> 正在写入脱敏文件…
+                </p>
+              ) : null}
+            </section>
+
+            {result && (
+              <Button type="button" variant="ghost" onClick={onReset}>
+                重新选择文档
+              </Button>
+            )}
           </Card>
         </div>
       )}

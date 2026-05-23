@@ -1,5 +1,9 @@
 packages/shared/src/build-info.ts
 
+# llama.cpp 预编译运行时（构建前 pnpm fetch:llama-runtime 生成，勿提交）
+buildResources/llama-runtime/*
+!buildResources/llama-runtime/.gitkeep
+
 node_modules
 .pnpm-store
 .DS_Store

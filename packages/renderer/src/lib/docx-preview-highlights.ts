@@ -1,4 +1,4 @@
-export type PreviewHighlightKind = 'manual' | 'profile' | 'system';
+export type PreviewHighlightKind = 'manual' | 'profile' | 'system' | 'recognized';
 
 export type PreviewHighlightTerm = {
   kind: PreviewHighlightKind;
@@ -44,7 +44,8 @@ export type ApplyHighlightResult = {
 };
 
 const KIND_PRIORITY: Record<PreviewHighlightKind, number> = {
-  manual: 3,
+  manual: 4,
+  recognized: 3,
   profile: 2,
   system: 1,
 };
@@ -59,7 +60,23 @@ export function highlightKindClassName(kind: PreviewHighlightKind): string {
       return 'docx-rule-hit docx-rule-hit-profile';
     case 'system':
       return 'docx-rule-hit docx-rule-hit-system';
+    case 'recognized':
+      return 'docx-rule-hit docx-rule-hit-recognized';
   }
+}
+
+export function extractRecognizedHighlightTexts(hits: { text?: string }[]): string[] {
+  const seen = new Set<string>();
+  const texts: string[] = [];
+  for (const hit of hits) {
+    const text = hit.text?.trim();
+    if (!text || seen.has(text)) {
+      continue;
+    }
+    seen.add(text);
+    texts.push(text);
+  }
+  return texts;
 }
 
 export function buildPreviewHighlightTerms(options: {
@@ -67,6 +84,7 @@ export function buildPreviewHighlightTerms(options: {
   profile: string[];
   system: string[];
   systemEnabled: boolean;
+  recognized?: string[];
 }): PreviewHighlightTerm[] {
   const terms: PreviewHighlightTerm[] = [];
   const seen = new Set<string>();
@@ -88,6 +106,7 @@ export function buildPreviewHighlightTerms(options: {
   };
 
   addKind('manual', options.manual);
+  addKind('recognized', options.recognized ?? []);
   addKind('profile', options.profile);
   if (options.systemEnabled) {
     addKind('system', options.system);

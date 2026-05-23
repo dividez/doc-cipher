@@ -1,7 +1,8 @@
 import { useMemo, useState } from 'react';
 import { ChevronDown, ChevronRight, X } from 'lucide-react';
 import { type DocxMatchHitKind, type DocxMatchPreviewResult, matchKindLabel } from '@app/shared';
-import { Button } from './ui';
+import { TipsButton } from './TipsButton.js';
+import { Button } from './ui.js';
 
 const KIND_ORDER: DocxMatchHitKind[] = [
   'regex',
@@ -16,7 +17,7 @@ const KIND_HINTS: Record<DocxMatchHitKind, string> = {
   system_keyword: '来自「设置 → 系统关键词」，受脱敏页「系统关键词」开关控制',
   profile_keyword: '来自当前脱敏方案中的方案关键词',
   manual: '本次划词加入的手动词，全文子串匹配；可在预览中用 Ctrl/Cmd+F 查找',
-  ai: '来自「应用设置 → AI 辅助脱敏」本地模型识别',
+  ai: '来自本次任务识别阶段的本地 AI 辅助识别',
 };
 
 type MatchPreviewDialogProps = {
@@ -24,6 +25,9 @@ type MatchPreviewDialogProps = {
   preview: DocxMatchPreviewResult;
   systemKeywordsEnabled: boolean;
   onClose: () => void;
+  taskFlow?: boolean;
+  confirmBusy?: boolean;
+  onConfirmMask?: () => void;
 };
 
 export function MatchPreviewDialog({
@@ -31,6 +35,9 @@ export function MatchPreviewDialog({
   preview,
   systemKeywordsEnabled,
   onClose,
+  taskFlow = false,
+  confirmBusy = false,
+  onConfirmMask,
 }: MatchPreviewDialogProps) {
   const [expandedRuleId, setExpandedRuleId] = useState<string | null>(null);
 
@@ -57,9 +64,15 @@ export function MatchPreviewDialog({
         onClick={(event) => event.stopPropagation()}
       >
         <header className="match-preview-dialog-head">
-          <div>
-            <h2 id="match-preview-title">命中预览</h2>
-            <p>脱敏前统计，未改写文件</p>
+          <div className="match-preview-dialog-title">
+            <h2 id="match-preview-title">识别结果</h2>
+            <TipsButton label="识别结果说明">
+              <p>
+                统计扫描与 AI
+                识别的命中，未改写文件。确认后点「确认并脱敏」或关闭后在侧栏「开始脱敏」。
+              </p>
+              {!systemKeywordsEnabled ? <p>系统关键词开关已关闭，不含模板通用词规则。</p> : null}
+            </TipsButton>
           </div>
           <Button type="button" variant="ghost" aria-label="关闭" onClick={onClose}>
             <X size={18} />
@@ -72,12 +85,6 @@ export function MatchPreviewDialog({
           <span>手动词 {preview.manualSelectionHits}</span>
         </div>
 
-        {!systemKeywordsEnabled && (
-          <p className="match-preview-hint">
-            系统关键词开关已关闭，统计中不包含默认模板里的通用关键词规则。
-          </p>
-        )}
-
         <div className="match-preview-dialog-body">
           {grouped.map(({ kind, hits, zeroHits, samples }) => {
             if (hits.length === 0 && zeroHits.length === 0) {
@@ -85,8 +92,12 @@ export function MatchPreviewDialog({
             }
             return (
               <section key={kind} className="match-preview-group">
-                <h3>{matchKindLabel(kind)}</h3>
-                <p className="match-preview-group-hint">{KIND_HINTS[kind]}</p>
+                <div className="match-preview-group-head">
+                  <h3>{matchKindLabel(kind)}</h3>
+                  <TipsButton label={`${matchKindLabel(kind)}说明`}>
+                    <p>{KIND_HINTS[kind]}</p>
+                  </TipsButton>
+                </div>
                 {hits.length > 0 && (
                   <ul className="match-preview-rule-list">
                     {hits.map((hit) => {
@@ -136,9 +147,24 @@ export function MatchPreviewDialog({
         </div>
 
         <footer className="match-preview-dialog-foot">
-          <Button type="button" variant="outline" onClick={onClose}>
-            关闭
-          </Button>
+          {taskFlow ? (
+            <>
+              <Button type="button" variant="outline" onClick={onClose} disabled={confirmBusy}>
+                返回修改
+              </Button>
+              <Button
+                type="button"
+                onClick={onConfirmMask}
+                disabled={confirmBusy || !onConfirmMask}
+              >
+                {confirmBusy ? '脱敏中…' : '确认并脱敏'}
+              </Button>
+            </>
+          ) : (
+            <Button type="button" variant="outline" onClick={onClose}>
+              关闭
+            </Button>
+          )}
         </footer>
       </div>
     </div>

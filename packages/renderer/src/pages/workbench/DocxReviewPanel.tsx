@@ -1,6 +1,7 @@
 import { useCallback } from 'react';
 import { Trash2 } from 'lucide-react';
 import type { PreviewHighlightTerm } from '../../lib/docx-preview-highlights.js';
+import { TipsButton } from '../../components/TipsButton.js';
 import { Button } from '../../components/ui.js';
 import { DocxVisualPreview } from '../../components/DocxVisualPreview.js';
 
@@ -36,9 +37,11 @@ export function DocxReviewPanel({
   return (
     <section className="docx-review">
       <div className="docx-review-toolbar">
-        <div>
+        <div className="docx-review-title">
           <h3>文档预览</h3>
-          <span>只读版式 · 划词加入手动关键词</span>
+          <TipsButton label="文档预览说明">
+            <p>只读版式。选中文字可加入备选词；高亮显示规则与备选词命中。</p>
+          </TipsButton>
         </div>
         <div className="docx-review-actions">
           <Button

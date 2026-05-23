@@ -14,13 +14,15 @@ import {
   settingsSchema,
   type AiDetectPayload,
   type AiDownloadProgress,
-  type DocxMatchPreviewPayload,
+  type AiInferenceEstimatePayload,
   type DocxReadFilePayload,
+  type DocxRecognizeMatchesPayload,
   type MaskDocxPayload,
   type RestoreDocxPayload,
+  isLocalAiBundled,
 } from '@app/shared';
 import { maskDocx } from '../services/docx/docx-mask.service.js';
-import { previewDocxMatches } from '../services/docx/docx-match-preview.service.js';
+import { recognizeDocxMatches } from '../services/docx/docx-recognize-matches.service.js';
 import { readDocxFile } from '../services/docx/docx-read-file.service.js';
 import {
   deleteMaskProfile,
@@ -33,7 +35,15 @@ import { restoreDocx } from '../services/docx/docx-restore.service.js';
 import { readSettings, saveSettings } from '../services/settings/settings.service.js';
 import { configureLogger, logger, readAppLogs } from '../services/app/log.service.js';
 import { listTaskHistory } from '../services/task/task.service.js';
-import { detectSensitiveEntities } from '../services/ai/ai-detect.service.js';
+import { detectSensitiveEntitiesWithSlidingWindow } from '../services/ai/ai-detect.service.js';
+import { estimateDocxInference } from '../services/ai/ai-estimate.service.js';
+import {
+  broadcastAiMaskProgress,
+  broadcastAiRecognizeLog,
+  cancelMaskTask,
+  setAiMaskProgressSink,
+  setAiRecognizeLogSink,
+} from '../services/ai/ai-mask-task.service.js';
 import { loadModelManifest } from '../services/ai/model-manifest.service.js';
 import {
   broadcastAiDownloadProgress,
@@ -42,8 +52,17 @@ import {
   downloadModel,
   downloadRecommendedModel,
   getAiStatus,
+  setActiveModel,
   setAiDownloadProgressSink,
 } from '../services/ai/model-manager.service.js';
+
+const LOCAL_AI_UNAVAILABLE = '本版本不支持本地 AI';
+
+function requireLocalAiBundled(): void {
+  if (!isLocalAiBundled()) {
+    throw new Error(LOCAL_AI_UNAVAILABLE);
+  }
+}
 
 class IpcModule implements AppModule {
   async enable({ app }: ModuleContext): Promise<void> {
@@ -68,6 +87,24 @@ class IpcModule implements AppModule {
     ipcMain.handle('app:open-user-data-dir', async () => {
       const { userDataDir } = getAppStoragePathsInfo();
       await shell.openPath(userDataDir);
+    });
+
+    ipcMain.handle('app:open-external-url', async (_, rawUrl: string) => {
+      let parsed: URL;
+      try {
+        parsed = new URL(rawUrl);
+      } catch {
+        throw new Error('无效的链接');
+      }
+      if (parsed.protocol !== 'https:') {
+        throw new Error('仅支持 https 链接');
+      }
+      const allowedHosts = new Set(['github.com', 'www.github.com', 'pdf24.org', 'www.pdf24.org']);
+      const host = parsed.hostname.toLowerCase();
+      if (!allowedHosts.has(host)) {
+        throw new Error('不支持的链接域名');
+      }
+      await shell.openExternal(parsed.toString());
     });
 
     ipcMain.handle('app:pick-user-data-dir', async () => {
@@ -205,8 +242,8 @@ class IpcModule implements AppModule {
     );
 
     ipcMain.handle(
-      'docx:preview-matches',
-      async (_, payload: DocxMatchPreviewPayload) => await previewDocxMatches(payload),
+      'docx:recognize-matches',
+      async (_, payload: DocxRecognizeMatchesPayload) => await recognizeDocxMatches(payload),
     );
 
     ipcMain.handle('tasks:list-history', async (_, limit?: number) => await listTaskHistory(limit));
@@ -232,11 +269,23 @@ class IpcModule implements AppModule {
       broadcastAiDownloadProgress(BrowserWindow.getAllWindows(), progress);
     });
 
+    setAiMaskProgressSink((progress) => {
+      broadcastAiMaskProgress(BrowserWindow.getAllWindows(), progress);
+    });
+
+    setAiRecognizeLogSink((event) => {
+      broadcastAiRecognizeLog(BrowserWindow.getAllWindows(), event);
+    });
+
     ipcMain.handle('ai:get-status', async () => await getAiStatus());
 
-    ipcMain.handle('ai:fetch-manifest', async () => await loadModelManifest(true));
+    ipcMain.handle('ai:fetch-manifest', async () => {
+      requireLocalAiBundled();
+      return await loadModelManifest(true);
+    });
 
     ipcMain.handle('ai:download-model', async (_, modelId?: string) => {
+      requireLocalAiBundled();
       if (modelId) {
         const manifest = await loadModelManifest();
         const entry = manifest.models.find((m) => m.id === modelId);
@@ -249,15 +298,33 @@ class IpcModule implements AppModule {
     });
 
     ipcMain.handle('ai:cancel-download', async () => {
+      requireLocalAiBundled();
       await cancelModelDownload();
     });
 
     ipcMain.handle('ai:delete-model', async (_, modelId?: string) => {
+      requireLocalAiBundled();
       await deleteInstalledModel(modelId);
     });
 
+    ipcMain.handle('ai:set-active-model', async (_, modelId: string) => {
+      requireLocalAiBundled();
+      await setActiveModel(modelId);
+    });
+
     ipcMain.handle('ai:detect-sensitive', async (_, payload: AiDetectPayload) => {
-      return await detectSensitiveEntities(payload.text);
+      requireLocalAiBundled();
+      return await detectSensitiveEntitiesWithSlidingWindow(payload.text);
+    });
+
+    ipcMain.handle('ai:estimate-inference', async (_, payload: AiInferenceEstimatePayload) => {
+      requireLocalAiBundled();
+      return await estimateDocxInference(payload.filePath);
+    });
+
+    ipcMain.handle('ai:cancel-mask', async () => {
+      requireLocalAiBundled();
+      await cancelMaskTask();
     });
   }
 }

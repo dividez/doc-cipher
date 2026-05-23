@@ -2,10 +2,14 @@ import type {
   AiDetectPayload,
   AiDetectResult,
   AiDownloadProgress,
+  AiInferenceEstimate,
+  AiInferenceEstimatePayload,
+  AiMaskProgress,
+  AiRecognizeLogEvent,
   AiStatus,
   AppLogEntry,
-  DocxMatchPreviewPayload,
   DocxMatchPreviewResult,
+  DocxRecognizeMatchesPayload,
   DocxReadFilePayload,
   DocxReadFileResult,
   InstalledModel,
@@ -59,12 +63,13 @@ export const localApi = {
   importMaskProfile: () => invoke<MaskProfile | null>('profiles:import'),
   readLogs: () => invoke<AppLogEntry[]>('logs:read'),
   showItemInFolder: (filePath: string) => invoke<void>('shell:show-item-in-folder', filePath),
-  previewDocxMatches: (payload: DocxMatchPreviewPayload) =>
-    invoke<DocxMatchPreviewResult>('docx:preview-matches', payload),
+  recognizeDocxMatches: (payload: DocxRecognizeMatchesPayload) =>
+    invoke<DocxMatchPreviewResult>('docx:recognize-matches', payload),
   listTaskHistory: (limit?: number) => invoke<TaskHistoryEntry[]>('tasks:list-history', limit),
   getStoragePaths: () => invoke<AppStoragePathsInfo>('app:get-storage-paths'),
   openAppDataDir: () => invoke<void>('app:open-app-data-dir'),
   openUserDataDir: () => invoke<void>('app:open-user-data-dir'),
+  openExternalUrl: (url: string) => invoke<void>('app:open-external-url', url),
   pickUserDataDir: () =>
     invoke<{ path: string; needsRestart: boolean } | null>('app:pick-user-data-dir'),
   resetUserDataDir: () =>
@@ -75,8 +80,12 @@ export const localApi = {
   downloadAiModel: (modelId?: string) => invoke<InstalledModel>('ai:download-model', modelId),
   cancelAiDownload: () => invoke<void>('ai:cancel-download'),
   deleteAiModel: (modelId?: string) => invoke<void>('ai:delete-model', modelId),
+  setActiveAiModel: (modelId: string) => invoke<void>('ai:set-active-model', modelId),
   detectSensitive: (payload: AiDetectPayload) =>
     invoke<AiDetectResult>('ai:detect-sensitive', payload),
+  estimateAiInference: (payload: AiInferenceEstimatePayload) =>
+    invoke<AiInferenceEstimate>('ai:estimate-inference', payload),
+  cancelAiMask: () => invoke<void>('ai:cancel-mask'),
   onAiDownloadProgress: (callback: (progress: AiDownloadProgress) => void) => {
     const listener = (_event: unknown, progress: AiDownloadProgress) => {
       callback(progress);
@@ -84,6 +93,24 @@ export const localApi = {
     ipcRenderer.on('ai:download-progress', listener);
     return () => {
       ipcRenderer.removeListener('ai:download-progress', listener);
+    };
+  },
+  onAiMaskProgress: (callback: (progress: AiMaskProgress) => void) => {
+    const listener = (_event: unknown, progress: AiMaskProgress) => {
+      callback(progress);
+    };
+    ipcRenderer.on('ai:mask-progress', listener);
+    return () => {
+      ipcRenderer.removeListener('ai:mask-progress', listener);
+    };
+  },
+  onAiRecognizeLog: (callback: (event: AiRecognizeLogEvent) => void) => {
+    const listener = (_event: unknown, event: AiRecognizeLogEvent) => {
+      callback(event);
+    };
+    ipcRenderer.on('ai:recognize-log', listener);
+    return () => {
+      ipcRenderer.removeListener('ai:recognize-log', listener);
     };
   },
   onNavigate: (callback: (view: string) => void) => {

@@ -34,7 +34,6 @@ export const maskingRuleSchema = z.discriminatedUnion('type', [
 ]);
 
 export const aiAssistSettingsSchema = z.object({
-  enabled: z.boolean().default(false),
   confidence_threshold: z.number().min(0).max(1).default(0.75),
 });
 
@@ -43,7 +42,6 @@ export const appSettingsSchema = z.object({
   enable_system_keywords: z.boolean().default(true),
   default_output_dir: z.string().default(''),
   ai_assist: aiAssistSettingsSchema.default({
-    enabled: false,
     confidence_threshold: 0.75,
   }),
 });
@@ -73,7 +71,6 @@ export const defaultSettings: Settings = {
     enable_system_keywords: true,
     default_output_dir: '',
     ai_assist: {
-      enabled: false,
       confidence_threshold: 0.75,
     },
   },

@@ -79,6 +79,31 @@ export const aiDownloadProgressSchema = z.object({
   error_message: z.string().optional(),
 });
 
+export const aiInferenceEstimateSchema = z.object({
+  filePath: z.string().min(1),
+  paragraphCount: z.number().int().nonnegative(),
+  totalWindows: z.number().int().nonnegative(),
+  estimatedSecondsMin: z.number().int().nonnegative(),
+  estimatedSecondsMax: z.number().int().nonnegative(),
+});
+
+export const aiInferenceEstimatePayloadSchema = z.object({
+  filePath: z.string().min(1),
+});
+
+export const aiMaskProgressSchema = z.object({
+  doneWindows: z.number().int().nonnegative(),
+  totalWindows: z.number().int().nonnegative(),
+  phase: z.enum(['recognize', 'mask', 'preview']),
+});
+
+export const aiRecognizeLogEventSchema = z.object({
+  type: z.enum(['status', 'window_raw', 'error', 'done']),
+  message: z.string(),
+  windowIndex: z.number().int().nonnegative().optional(),
+  totalWindows: z.number().int().nonnegative().optional(),
+});
+
 export const aiStatusSchema = z.object({
   runtime_available: z.boolean(),
   server_running: z.boolean(),
@@ -86,6 +111,7 @@ export const aiStatusSchema = z.object({
   active_model_id: z.string().nullable(),
   active_model_name: z.string().nullable(),
   model_installed: z.boolean(),
+  installed_models: z.array(installedModelSchema).default([]),
   download_task: downloadTaskSchema.nullable(),
   recommended_model: manifestModelEntrySchema.nullable(),
   available_models: z.array(manifestModelEntrySchema).default([]),
@@ -102,4 +128,8 @@ export type AiDetectEntity = z.infer<typeof aiDetectEntitySchema>;
 export type AiDetectPayload = z.infer<typeof aiDetectPayloadSchema>;
 export type AiDetectResult = z.infer<typeof aiDetectResultSchema>;
 export type AiDownloadProgress = z.infer<typeof aiDownloadProgressSchema>;
+export type AiInferenceEstimate = z.infer<typeof aiInferenceEstimateSchema>;
+export type AiInferenceEstimatePayload = z.infer<typeof aiInferenceEstimatePayloadSchema>;
+export type AiMaskProgress = z.infer<typeof aiMaskProgressSchema>;
+export type AiRecognizeLogEvent = z.infer<typeof aiRecognizeLogEventSchema>;
 export type AiStatus = z.infer<typeof aiStatusSchema>;

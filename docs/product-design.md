@@ -107,13 +107,13 @@ masked docx + restore.enc -> 本地部分还原 + restore-report.json
 
 ## 脱敏主流程
 
-1. 用户选择 docx，Renderer 通过 `docx:read-file` 加载二进制，**docx-preview** 只读版式预览。
-2. 选择脱敏方案（或临时方案）；规则摘要区分正则、系统词、方案词。
-3. 预览中划词采集文本，加入「本次手动词」列表（不记段落位置）；可选保存进方案关键词。
-4. Main 端 `previewDocxMatches` silent 刷新命中预估（不自动弹窗）。
-5. 用户点击「命中预估」可刷新并打开弹窗查看分组统计与样例。
-6. 输入还原密码，Main OOXML 脱敏，输出 masked docx、restore.enc、manifest、日志。
-7. 脱敏成功后自动切换预览为 **masked.docx**。
+敏感信息四类来源：**正则**、**方案/系统关键词**、**划词备选词**、**AI 辅助识别**；统一在脱敏前确认，最后点「开始脱敏」。
+
+1. 选择 docx，左侧 **文档预览** 立即加载正文；选择脱敏方案，划词加入备选列表。
+2. **扫描文档**：规则与关键词命中统计（`docx:recognize-matches`，不改写文件）。
+3. 可选 **AI 辅助识别**：脱敏页按钮触发，显示进度；结果写入备选列表（模型仅在设置页选用）。
+4. **开始脱敏**：填写还原密码后执行；`docx:mask` 应用 `recognizedHits` 快照。
+5. 脱敏成功后预览切换为 masked.docx。
 
 ## 还原主流程
 
@@ -138,22 +138,26 @@ masked docx + restore.enc -> 本地部分还原 + restore-report.json
 
 ## Renderer / Main 分工
 
-| 能力        | Renderer                    | Main                                         |
-| ----------- | --------------------------- | -------------------------------------------- |
-| 版式预览    | docx-preview 渲染           | `docx:read-file` 读二进制                    |
-| 划词        | `getSelection().toString()` | —                                            |
-| 脱敏 / 还原 | 展示结果与报告摘要          | OOXML 替换、写 masked / restore.enc / report |
-| 命中预估    | 弹窗展示                    | `docx:preview-matches` 段落级扫描            |
+| 能力         | Renderer                    | Main                                         |
+| ------------ | --------------------------- | -------------------------------------------- |
+| 版式预览     | docx-preview 渲染           | `docx:read-file` 读二进制                    |
+| 划词         | `getSelection().toString()` | —                                            |
+| 脱敏 / 还原  | 展示结果与报告摘要          | OOXML 替换、写 masked / restore.enc / report |
+| 识别结果     | 「识别结果」对话框          | `docx:recognize-matches`                     |
+| 文档预览高亮 | 规则/划词 + 识别命中        | Renderer `docx-preview-highlights`           |
 
-原则：预览不写 docx；脱敏不依赖预览 DOM。
+原则：文档预览不写 docx；脱敏不依赖预览 DOM；识别与脱敏分离。
 
-## 命中预览（脱敏前）
+## 文档预览 vs 识别结果
 
-- IPC：`previewDocxMatches`，不修改源文件。
-- 返回段落级 `hits[]`（含 `kind`：regex / system_keyword / profile_keyword / manual）。
-- v1 **不在** docx-preview DOM 上叠加命中高亮；详情见居中弹窗。
-- 手动词为全文 `indexOf` 子串匹配，与关键词规则一致。
-- 切换方案或变更规则/手动词后 debounce 自动 silent 刷新。
+| 组件               | 职责                                | 时机             |
+| ------------------ | ----------------------------------- | ---------------- |
+| 文档预览（左栏）   | 已选 docx 正文、划词、规则/识别高亮 | 选文件后即加载   |
+| 识别结果（对话框） | 命中分类统计与样例                  | 扫描或 AI 识别后 |
+
+- IPC：`docx:recognize-matches`（扫描 / `aiSupplementOnly` 补充），不修改源文件。
+- 备选词列表统一收纳划词与 AI 词，可删除；脱敏时按列表过滤 AI/划词命中。
+- AI 识别进行中可 `ai:cancel-mask` 取消。
 
 ## 关键词：系统 vs 方案
 

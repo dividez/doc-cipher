@@ -6,6 +6,29 @@ import { pathToFileURL } from 'node:url';
 /** 主图标：1024×1024 PNG，打包时由 electron-builder 生成各平台图标 */
 const appIcon = 'buildResources/icon.png';
 
+function isBundleLlamaEnabled() {
+  const raw = process.env.DOCIPHER_BUNDLE_LLAMA?.trim().toLowerCase();
+  return raw === '1' || raw === 'true' || raw === 'yes';
+}
+
+const bundleLlama = isBundleLlamaEnabled();
+const llamaPlatformKey = process.env.LLAMA_RUNTIME_PLATFORMS?.trim();
+
+/** @type {import('electron-builder').Configuration['extraResources']} */
+const extraResources = [];
+if (bundleLlama) {
+  const runtimeFilter = llamaPlatformKey ? [`${llamaPlatformKey}/**/*`, '.gitkeep'] : ['**/*'];
+  extraResources.push({
+    from: 'buildResources/llama-runtime',
+    to: 'llama-runtime',
+    filter: runtimeFilter,
+  });
+  extraResources.push({
+    from: 'buildResources/default-model-manifest.json',
+    to: 'default-model-manifest.json',
+  });
+}
+
 export default /** @type import('electron-builder').Configuration */
 ({
   appId: 'com.doccipher.app',
@@ -17,18 +40,8 @@ export default /** @type import('electron-builder').Configuration */
   },
   generateUpdatesFilesForAllChannels: true,
   asar: true,
-  asarUnpack: ['**/llama-runtime/**'],
-  extraResources: [
-    {
-      from: 'buildResources/llama-runtime',
-      to: 'llama-runtime',
-      filter: ['**/*'],
-    },
-    {
-      from: 'buildResources/default-model-manifest.json',
-      to: 'default-model-manifest.json',
-    },
-  ],
+  asarUnpack: bundleLlama ? ['**/llama-runtime/**'] : [],
+  extraResources,
   mac: {
     icon: appIcon,
     category: 'public.app-category.productivity',
@@ -55,7 +68,9 @@ export default /** @type import('electron-builder').Configuration */
    * It is recommended to avoid using non-standard characters such as spaces in artifact names,
    * as they can unpredictably change during deployment, making them impossible to locate and download for update.
    */
-  artifactName: '${productName}-${version}-${os}-${arch}.${ext}',
+  artifactName: bundleLlama
+    ? '${productName}-${version}-${os}-${arch}-ai.${ext}'
+    : '${productName}-${version}-${os}-${arch}.${ext}',
   files: [
     'LICENSE*',
     pkg.main,

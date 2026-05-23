@@ -1,7 +1,8 @@
 import { app } from 'electron';
 import { access } from 'node:fs/promises';
 import { spawn, type ChildProcess } from 'node:child_process';
-import { join } from 'node:path';
+import { dirname, join } from 'node:path';
+import { isLocalAiBundled } from '@app/shared';
 import { getAppStoragePaths } from '../app/app-paths.service.js';
 import { resolveBuildResourcesPath } from '../app/build-resources-paths.service.js';
 import { logger } from '../app/log.service.js';
@@ -27,7 +28,7 @@ function getRuntimePlatformKey(): RuntimePlatformKey | null {
 }
 
 export function isLlamaRuntimeSupported(): boolean {
-  return getRuntimePlatformKey() !== null;
+  return isLocalAiBundled() && getRuntimePlatformKey() !== null;
 }
 
 function getBundledRuntimeDir(): string {
@@ -59,6 +60,9 @@ export async function resolveLlamaServerPath(): Promise<string | null> {
 }
 
 export async function isLlamaRuntimeAvailable(): Promise<boolean> {
+  if (!isLocalAiBundled()) {
+    return false;
+  }
   return (await resolveLlamaServerPath()) !== null;
 }
 
@@ -123,8 +127,8 @@ export async function ensureLlamaServer(modelPath: string): Promise<string> {
       throw new Error('未找到内置 llama.cpp 运行时，请重新安装客户端或使用支持的平台');
     }
 
-    const { tempDir } = getAppStoragePaths();
     serverPort = DEFAULT_PORT;
+    const runtimeDir = dirname(binary);
 
     serverProcess = spawn(
       binary,
@@ -141,7 +145,7 @@ export async function ensureLlamaServer(modelPath: string): Promise<string> {
         '1',
       ],
       {
-        cwd: tempDir,
+        cwd: runtimeDir,
         stdio: ['ignore', 'pipe', 'pipe'],
         windowsHide: true,
       },

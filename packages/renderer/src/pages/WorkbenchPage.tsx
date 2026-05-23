@@ -10,8 +10,15 @@ import {
   defaultSettings,
   extractSystemKeywords,
   hasDuplicateManualKeyword,
+  extractAiKeywordTextsFromHits,
+  filterRecognizedHitsByCandidates,
   manualKeywordTexts,
+  mergeAiKeywordsIntoCandidates,
+  mergeMatchPreviewResults,
   type AppLogEntry,
+  type AiInferenceEstimate,
+  type AiMaskProgress,
+  type AiRecognizeLogEvent,
   type DocxMatchPreviewResult,
   type ManualKeyword,
   type MaskDocxResult,
@@ -21,7 +28,11 @@ import {
   type Settings as AppSettings,
   type AppSettingsConfig,
   type TaskHistoryEntry,
+  isRecognitionCancelledError,
+  isLocalAiBundled,
+  resolveAiAssistReadiness,
 } from '@app/shared';
+import { AiRecognizeLogDialog } from '../components/AiRecognizeLogDialog.js';
 import { AppIcon } from '../components/AppIcon.js';
 import { Badge, Button, Card, cn } from '../components/ui.js';
 import { getDebugApi } from '../lib/debug-api.js';
@@ -62,11 +73,8 @@ export function WorkbenchPage() {
   const [previewFilePath, setPreviewFilePath] = useState<string | null>(null);
   const [manualKeywords, setManualKeywords] = useState<ManualKeyword[]>([]);
   const [matchPreview, setMatchPreview] = useState<DocxMatchPreviewResult | null>(null);
-  const [matchPreviewLoading, setMatchPreviewLoading] = useState(false);
   const [matchPreviewDialogOpen, setMatchPreviewDialogOpen] = useState(false);
-  const matchPreviewDebounceRef = useRef<number | null>(null);
   const [highlightRevision, setHighlightRevision] = useState(0);
-  const matchPreviewLoadingRef = useRef(false);
   const [maskProfiles, setMaskProfiles] = useState<MaskProfile[]>([]);
   const [activeProfileId, setActiveProfileId] = useState('');
   const [selectedProfileId, setSelectedProfileId] = useState('');
@@ -97,6 +105,14 @@ export function WorkbenchPage() {
     outputPath: string;
   } | null>(null);
   const [storagePaths, setStoragePaths] = useState<AppStoragePathsInfo | null>(null);
+  const [aiReady, setAiReady] = useState(false);
+  const [aiBlockReason, setAiBlockReason] = useState<string | null>(null);
+  const [aiEstimate, setAiEstimate] = useState<AiInferenceEstimate | null>(null);
+  const [aiEstimateLoading, setAiEstimateLoading] = useState(false);
+  const [maskAiProgress, setMaskAiProgress] = useState<AiMaskProgress | null>(null);
+  const [maskBusyAction, setMaskBusyAction] = useState<'idle' | 'scan' | 'ai' | 'mask'>('idle');
+  const [aiRecognizeLogOpen, setAiRecognizeLogOpen] = useState(false);
+  const [aiRecognizeLogEvents, setAiRecognizeLogEvents] = useState<AiRecognizeLogEvent[]>([]);
 
   const enabledRules = useMemo(
     () => filterExecutableRules(settings, templateSettings.app),
@@ -109,6 +125,7 @@ export function WorkbenchPage() {
         profile: extractProfileKeywords(settings),
         system: extractSystemKeywords(templateSettings),
         systemEnabled: templateSettings.app.enable_system_keywords,
+        recognized: [],
       }),
     [manualKeywords, settings, templateSettings],
   );
@@ -205,62 +222,65 @@ export function WorkbenchPage() {
     [showNotice],
   );
 
-  const refreshMatchPreview = useCallback(
-    async (options?: { silent?: boolean; openDialog?: boolean }) => {
-      if (!isLocalApiReady() || !maskForm.inputPath) {
-        if (!options?.silent) {
-          showNotice('error', '请先选择文档');
-        }
-        return;
-      }
-      setMatchPreviewLoading(true);
-      try {
-        const appConfig = templateSettings.app;
-        const result = await getLocalApi().previewDocxMatches({
-          filePath: maskForm.inputPath,
-          settings: withGlobalAppConfig(settings, appConfig),
-          manualKeywords: manualKeywordTexts(manualKeywords),
-          aiAssist: appConfig.ai_assist.enabled,
-        });
-        setMatchPreview(result);
-        if (options?.openDialog) {
-          setMatchPreviewDialogOpen(true);
-          showNotice('info', `命中预估：共 ${result.totalHits} 处，未改写文件`);
-        }
-      } catch (error) {
-        if (!options?.silent) {
-          showNotice('error', formatError(error));
-        }
-      } finally {
-        setMatchPreviewLoading(false);
-      }
-    },
-    [maskForm.inputPath, settings, templateSettings.app, manualKeywords, showNotice],
-  );
+  const clearRecognitionResult = useCallback(() => {
+    setMatchPreview(null);
+    setMatchPreviewDialogOpen(false);
+  }, []);
 
   useEffect(() => {
-    if (!maskForm.inputPath) {
+    clearRecognitionResult();
+  }, [maskForm.inputPath, activeProfileId, manualKeywords, settings, clearRecognitionResult]);
+
+  useEffect(() => {
+    if (!isLocalAiBundled() || !isLocalApiReady()) {
       return;
     }
-    if (matchPreviewDebounceRef.current !== null) {
-      window.clearTimeout(matchPreviewDebounceRef.current);
+    if (activeView !== 'mask' && activeView !== 'settings') {
+      return;
     }
-    matchPreviewDebounceRef.current = window.setTimeout(() => {
-      void refreshMatchPreview({ silent: true });
-    }, 400);
-    return () => {
-      if (matchPreviewDebounceRef.current !== null) {
-        window.clearTimeout(matchPreviewDebounceRef.current);
-      }
-    };
-  }, [maskForm.inputPath, settings, manualKeywords, templateSettings.app, refreshMatchPreview]);
+    void getLocalApi()
+      .getAiStatus()
+      .then((status) => {
+        const { ready, reason } = resolveAiAssistReadiness(status);
+        setAiReady(ready);
+        setAiBlockReason(reason);
+      })
+      .catch(() => {
+        setAiReady(false);
+        setAiBlockReason(null);
+      });
+  }, [activeView]);
 
   useEffect(() => {
-    if (matchPreviewLoadingRef.current && !matchPreviewLoading && matchPreview) {
-      setHighlightRevision((revision) => revision + 1);
+    if (!isLocalAiBundled() || !isLocalApiReady() || !maskForm.inputPath || !aiReady) {
+      setAiEstimate(null);
+      return;
     }
-    matchPreviewLoadingRef.current = matchPreviewLoading;
-  }, [matchPreviewLoading, matchPreview]);
+    setAiEstimateLoading(true);
+    void getLocalApi()
+      .estimateAiInference({ filePath: maskForm.inputPath })
+      .then(setAiEstimate)
+      .catch(() => setAiEstimate(null))
+      .finally(() => setAiEstimateLoading(false));
+  }, [maskForm.inputPath, aiReady]);
+
+  useEffect(() => {
+    if (!isLocalApiReady()) {
+      return;
+    }
+    return getLocalApi().onAiMaskProgress((progress) => {
+      setMaskAiProgress(progress);
+    });
+  }, []);
+
+  useEffect(() => {
+    if (!isLocalAiBundled() || !isLocalApiReady()) {
+      return;
+    }
+    return getLocalApi().onAiRecognizeLog((event) => {
+      setAiRecognizeLogEvents((current) => [...current, event]);
+    });
+  }, []);
 
   useEffect(() => {
     if (!isLocalApiReady()) {
@@ -407,43 +427,147 @@ export function WorkbenchPage() {
     }
   }
 
-  async function runMask() {
-    if (!maskForm.inputPath || !maskForm.password) {
-      showNotice('error', '请选择 docx 并输入还原密码');
+  async function resolveExecutionSettings(): Promise<AppSettings> {
+    let executionSettings = withGlobalAppConfig(settings, templateSettings.app);
+    if (manualKeywords.length > 0) {
+      const activeProfile = maskProfiles.find((profile) => profile.id === activeProfileId);
+      const autoName =
+        activeProfile?.name || `${fileName(maskForm.inputPath).replace(/\.docx$/i, '')} 脱敏方案`;
+      const profileSettings = buildSettingsWithProfileKeywords(settings, manualKeywords, '');
+      const savedProfile = await getLocalApi().saveMaskProfile({
+        id: activeProfile?.id,
+        name: autoName,
+        settings: withGlobalAppConfig(profileSettings, templateSettings.app),
+      });
+      executionSettings = withGlobalAppConfig(savedProfile.settings, templateSettings.app);
+      setSettings(savedProfile.settings);
+      setActiveProfileId(savedProfile.id);
+      setSelectedProfileId(savedProfile.id);
+      await refreshMaskProfiles();
+    }
+    return executionSettings;
+  }
+
+  async function runRecognizeTask(options: {
+    action: 'scan' | 'ai';
+    useLocalAi: boolean;
+    aiSupplementOnly?: boolean;
+    mergeIntoExisting: boolean;
+  }) {
+    if (!maskForm.inputPath) {
+      showNotice('error', '请先选择文档');
+      return;
+    }
+    if (!isLocalApiReady()) {
+      showNotice('error', '服务不可用');
+      return;
+    }
+    if (options.action === 'ai') {
+      if (!isLocalAiBundled()) {
+        showNotice('error', '本版本不支持本地 AI');
+        return;
+      }
+      if (!aiReady) {
+        showNotice('error', aiBlockReason ?? '请先在设置中配置本地 AI 模型');
+        return;
+      }
+    }
+
+    setBusy(true);
+    setMaskBusyAction(options.action);
+    if (!options.mergeIntoExisting) {
+      setMaskAiProgress(null);
+      clearRecognitionResult();
+    } else {
+      setMaskAiProgress(null);
+    }
+
+    try {
+      const executionSettings = await resolveExecutionSettings();
+      const result = await getLocalApi().recognizeDocxMatches({
+        filePath: maskForm.inputPath,
+        settings: executionSettings,
+        manualKeywords: manualKeywordTexts(manualKeywords),
+        useLocalAi: options.useLocalAi,
+        aiSupplementOnly: options.aiSupplementOnly,
+      });
+
+      setMatchPreview((current) =>
+        options.mergeIntoExisting ? mergeMatchPreviewResults(current, result) : result,
+      );
+
+      if (options.action === 'ai') {
+        const aiTexts = extractAiKeywordTextsFromHits(result.hits);
+        if (aiTexts.length > 0) {
+          setManualKeywords((current) => mergeAiKeywordsIntoCandidates(current, aiTexts));
+          showNotice('success', `已加入 ${aiTexts.length} 个 AI 备选词`);
+        }
+      }
+
+      setHighlightRevision((revision) => revision + 1);
+      if (options.action === 'scan' && !options.mergeIntoExisting) {
+        setMatchPreviewDialogOpen(true);
+      }
+      if (options.action === 'scan') {
+        showNotice('info', `扫描完成：共 ${result.totalHits} 处命中`);
+      }
+    } catch (error) {
+      if (isRecognitionCancelledError(error)) {
+        showNotice('info', formatError(error));
+      } else {
+        showNotice('error', formatError(error));
+      }
+    } finally {
+      setBusy(false);
+      setMaskBusyAction('idle');
+      setMaskAiProgress(null);
+    }
+  }
+
+  function startRuleScanTask() {
+    void runRecognizeTask({
+      action: 'scan',
+      useLocalAi: false,
+      mergeIntoExisting: false,
+    });
+  }
+
+  function startAiRecognizeTask() {
+    if (!isLocalAiBundled()) {
+      return;
+    }
+    setAiRecognizeLogEvents([]);
+    setAiRecognizeLogOpen(true);
+    void runRecognizeTask({
+      action: 'ai',
+      useLocalAi: true,
+      aiSupplementOnly: true,
+      mergeIntoExisting: matchPreview !== null,
+    });
+  }
+
+  async function executeMaskFromPreview() {
+    if (!maskForm.inputPath || !maskForm.password || !matchPreview) {
+      showNotice('error', '请先扫描文档并填写还原密码');
       return;
     }
     setBusy(true);
+    setMaskBusyAction('mask');
     try {
-      let executionSettings = withGlobalAppConfig(settings, templateSettings.app);
-      if (manualKeywords.length > 0) {
-        const activeProfile = maskProfiles.find((profile) => profile.id === activeProfileId);
-        const autoName =
-          activeProfile?.name || `${fileName(maskForm.inputPath).replace(/\.docx$/i, '')} 脱敏方案`;
-        const profileSettings = buildSettingsWithProfileKeywords(settings, manualKeywords, '');
-        const savedProfile = await getLocalApi().saveMaskProfile({
-          id: activeProfile?.id,
-          name: autoName,
-          settings: withGlobalAppConfig(profileSettings, templateSettings.app),
-        });
-        executionSettings = withGlobalAppConfig(savedProfile.settings, templateSettings.app);
-        setSettings(savedProfile.settings);
-        setActiveProfileId(savedProfile.id);
-        setSelectedProfileId(savedProfile.id);
-        await refreshMaskProfiles();
-      }
+      const executionSettings = await resolveExecutionSettings();
+      const filteredHits = filterRecognizedHitsByCandidates(matchPreview.hits, manualKeywords);
       const result = await getLocalApi().maskDocx({
         inputPath: maskForm.inputPath,
         outputDir: maskForm.outputDir || templateSettings.app.default_output_dir || undefined,
         password: maskForm.password,
         settings: executionSettings,
         manualKeywords: manualKeywordTexts(manualKeywords),
-        aiAssist: templateSettings.app.ai_assist.enabled,
+        recognizedHits: filteredHits,
       });
       setMaskResult(result);
       pushRecentTask(maskForm.inputPath);
       setRecentTasks(loadRecentTasks());
-      setMatchPreview(null);
-      setMatchPreviewDialogOpen(false);
+      clearRecognitionResult();
       setManualKeywords([]);
       setPreviewFilePath(null);
       setMaskForm((current) => ({ ...current, inputPath: '', password: '' }));
@@ -455,6 +579,8 @@ export function WorkbenchPage() {
       showNotice('error', formatError(error));
     } finally {
       setBusy(false);
+      setMaskBusyAction('idle');
+      setMaskAiProgress(null);
     }
   }
 
@@ -464,7 +590,7 @@ export function WorkbenchPage() {
       return;
     }
     if (hasDuplicateManualKeyword(manualKeywords, normalized)) {
-      showNotice('error', '该词已在手动词列表中');
+      showNotice('error', '该词已在备选列表中');
       return;
     }
 
@@ -473,9 +599,10 @@ export function WorkbenchPage() {
       {
         id: `manual-${Date.now()}-${current.length + 1}`,
         text: normalized,
+        source: 'manual',
       },
     ]);
-    showNotice('success', `已加入手动词：${compactText(normalized, 18)}`);
+    showNotice('success', `已加入备选词：${compactText(normalized, 18)}`);
   }
 
   function removeManualKeyword(id: string) {
@@ -858,8 +985,13 @@ export function WorkbenchPage() {
               manualKeywords={manualKeywords}
               matchPreview={matchPreview}
               matchPreviewDialogOpen={matchPreviewDialogOpen}
-              matchPreviewLoading={matchPreviewLoading}
               previewFilePath={previewFilePath}
+              localAiEnabled={isLocalAiBundled()}
+              aiReady={aiReady}
+              aiBlockReason={aiBlockReason}
+              maskBusyAction={maskBusyAction}
+              aiEstimate={aiEstimate}
+              aiEstimateLoading={aiEstimateLoading}
               highlightTerms={highlightTerms}
               highlightRevision={highlightRevision}
               profiles={maskProfiles}
@@ -879,9 +1011,15 @@ export function WorkbenchPage() {
               onOpenFolder={openInFolder}
               onPickDocx={() => void pickDocx('mask')}
               onPickOutput={() => void pickOutputDir('mask')}
-              onRun={() => void runMask()}
+              maskAiProgress={maskAiProgress}
+              onRuleScan={() => startRuleScanTask()}
+              onAiRecognize={() => startAiRecognizeTask()}
+              onStartMask={() => void executeMaskFromPreview()}
+              onCancelMask={() => void getLocalApi().cancelAiMask()}
               onCloseMatchPreview={() => setMatchPreviewDialogOpen(false)}
-              onPreviewMatches={() => void refreshMatchPreview({ openDialog: true })}
+              onOpenMatchPreview={() => setMatchPreviewDialogOpen(true)}
+              onOpenSettings={() => setActiveView('settings')}
+              onConfirmMaskFromPreview={() => void executeMaskFromPreview()}
               onSaveProfile={() => void saveCurrentProfile()}
               onSelectProfile={selectMaskProfile}
               onGoRules={() => setActiveView('profiles')}
@@ -1026,6 +1164,21 @@ export function WorkbenchPage() {
           }}
         />
       )}
+
+      {isLocalAiBundled() ? (
+        <AiRecognizeLogDialog
+          open={aiRecognizeLogOpen}
+          events={aiRecognizeLogEvents}
+          inProgress={maskBusyAction === 'ai' && busy}
+          progress={maskAiProgress}
+          onClose={() => setAiRecognizeLogOpen(false)}
+          onCancel={() => {
+            if (isLocalApiReady()) {
+              void getLocalApi().cancelAiMask();
+            }
+          }}
+        />
+      ) : null}
 
       <footer className={cn('log-bar', logBarExpanded && 'log-bar-expanded')}>
         <button
