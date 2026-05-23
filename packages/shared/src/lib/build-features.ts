@@ -4,3 +4,8 @@ import { BUILD_INFO } from '../build-info.js';
 export function isLocalAiBundled(): boolean {
   return BUILD_INFO.features.localAi;
 }
+
+/** 本地开发构建（未注入 GITHUB_SHA 时为 dev）。 */
+export function isDevBuild(): boolean {
+  return String(BUILD_INFO.build) === 'dev';
+}

@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react';
-import { BUILD_INFO, isLocalAiBundled } from '@app/shared';
+import { BUILD_INFO, isDevBuild, isLocalAiBundled } from '@app/shared';
 import { AppIcon } from '../../../components/AppIcon.js';
 import { Card } from '../../../components/ui.js';
 import { getLocalApi, isLocalApiReady } from '../../../lib/local-api.js';
@@ -41,7 +41,7 @@ export function SettingsAboutTab() {
           <h3 className="app-settings-about-title">DocCipher</h3>
           <p className="app-settings-about-version">
             版本 {BUILD_INFO.version}
-            {BUILD_INFO.build !== 'dev' ? ` · 构建 ${BUILD_INFO.build}` : null}
+            {isDevBuild() ? null : ` · 构建 ${BUILD_INFO.build}`}
           </p>
         </div>
       </div>
