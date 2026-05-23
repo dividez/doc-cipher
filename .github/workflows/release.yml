@@ -42,15 +42,15 @@ jobs:
         include:
           - name: windows-x64
             runner: windows-latest
-            builder_args: --win nsis zip --x64
+            builder_args: --win nsis --x64
             llama_key: win32-x64
           - name: macos-x64
             runner: macos-15-intel
-            builder_args: --mac dmg zip --x64
+            builder_args: --mac dmg --x64
             llama_key: darwin-x64
           - name: macos-arm64
             runner: macos-latest
-            builder_args: --mac dmg zip --arm64
+            builder_args: --mac dmg --arm64
             llama_key: darwin-arm64
 
     steps:
@@ -107,16 +107,13 @@ jobs:
           name: DocCipher-${{ matrix.name }}
           path: |
             dist/*.dmg
-            dist/*.zip
             dist/*.exe
-            dist/*.blockmap
-            dist/*.yml
           if-no-files-found: error
 
       - name: Upload assets to GitHub Release
         run: |
           shopt -s nullglob
-          assets=(dist/*.dmg dist/*.zip dist/*.exe dist/*.blockmap dist/*.yml)
+          assets=(dist/*.dmg dist/*.exe)
           if [ ${#assets[@]} -eq 0 ]; then
             echo "No release assets found in dist"
             exit 1

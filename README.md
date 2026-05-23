@@ -28,22 +28,22 @@ pnpm build
 
 Release 会为每个平台产出 **两个** 安装包（同一 `appId`，二选一安装）：
 
-| 变体   | 文件名示例                             | 说明                              |
-| ------ | -------------------------------------- | --------------------------------- |
-| 精简版 | `DocCipher-{version}-mac-arm64.dmg`    | 规则扫描与脱敏，无本地 AI         |
-| AI 版  | `DocCipher-{version}-mac-arm64-ai.dmg` | 含 llama 运行时，支持 AI 辅助识别 |
+| 变体   | 文件名示例                                                  | 说明                              |
+| ------ | ----------------------------------------------------------- | --------------------------------- |
+| 精简版 | `DocCipher-{version}-mac-arm64.dmg` / `…-win-x64.exe`       | 规则扫描与脱敏，无本地 AI         |
+| AI 版  | `DocCipher-{version}-mac-arm64-ai.dmg` / `…-win-x64-ai.exe` | 含 llama 运行时，支持 AI 辅助识别 |
 
 本地打包示例（macOS arm64）：
 
 ```bash
 # 精简版
 DOCIPHER_BUNDLE_LLAMA=0 pnpm gen:build-info && pnpm build
-DOCIPHER_BUNDLE_LLAMA=0 pnpm exec electron-builder --config electron-builder.mjs --mac dmg zip --arm64
+DOCIPHER_BUNDLE_LLAMA=0 pnpm exec electron-builder --config electron-builder.mjs --mac dmg --arm64
 
 # AI 版（仅拉取当前平台运行时）
 LLAMA_RUNTIME_PLATFORMS=darwin-arm64 pnpm fetch:llama-runtime
 DOCIPHER_BUNDLE_LLAMA=1 pnpm gen:build-info && pnpm build
-DOCIPHER_BUNDLE_LLAMA=1 LLAMA_RUNTIME_PLATFORMS=darwin-arm64 pnpm exec electron-builder --config electron-builder.mjs --mac dmg zip --arm64
+DOCIPHER_BUNDLE_LLAMA=1 LLAMA_RUNTIME_PLATFORMS=darwin-arm64 pnpm exec electron-builder --config electron-builder.mjs --mac dmg --arm64
 ```
 
 ## 说明

@@ -38,21 +38,24 @@ export default /** @type import('electron-builder').Configuration */
     output: 'dist',
     buildResources: 'buildResources',
   },
-  generateUpdatesFilesForAllChannels: true,
+  generateUpdatesFilesForAllChannels: false,
   asar: true,
   asarUnpack: bundleLlama ? ['**/llama-runtime/**'] : [],
   extraResources,
+  dmg: {
+    writeUpdateInfo: false,
+  },
   mac: {
     icon: appIcon,
     category: 'public.app-category.productivity',
-    target: ['dmg', 'zip'],
+    target: ['dmg'],
     identity: null,
     hardenedRuntime: false,
     gatekeeperAssess: false,
   },
   win: {
     icon: appIcon,
-    target: ['nsis', 'zip'],
+    target: ['nsis'],
   },
   nsis: {
     oneClick: false,
