@@ -30,8 +30,8 @@ importers:
         specifier: 9.0.7
         version: 9.0.7
       electron:
-        specifier: 42.1.0
-        version: 42.1.0
+        specifier: 42.2.0
+        version: 42.2.0
       electron-builder:
         specifier: 25.1.8
         version: 25.1.8(electron-builder-squirrel-windows@25.1.8)
@@ -4132,7 +4132,7 @@ snapshots:
     transitivePeerDependencies:
       - supports-color
 
-  electron@42.1.0:
+  electron@42.2.0:
     dependencies:
       '@electron/get': 5.0.0
       '@types/node': 24.12.4
@@ -4153,7 +4153,7 @@ snapshots:
     dependencies:
       once: 1.4.0
 
-  env-paths@2.2.0: {}
+  env-paths@2.2.1: {}
 
   env-paths@3.0.0: {}
 
@@ -4725,7 +4725,7 @@ snapshots:
 
   node-gyp@9.0.0:
     dependencies:
-      env-paths: 2.2.0
+      env-paths: 2.2.1
       glob: 7.2.0
       graceful-fs: 4.2.11
       make-fetch-happen: 10.0.3
